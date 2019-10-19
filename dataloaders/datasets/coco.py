@@ -2,11 +2,13 @@ import os
 import os.path as osp
 import cv2
 import sys
+import random
 import numpy as np
 from pycocotools.coco import COCO
 
 import torch
 from torch.utils.data import Dataset
+from torch.utils.data.sampler import Sampler
 from torchvision import transforms
 sys.path.insert(0, osp.join(osp.dirname(osp.abspath(__file__)), '../../'))
 from dataloaders import transform as tsf
@@ -35,24 +37,27 @@ class CocoDataset(Dataset):
 
         self.load_classes()
 
+        self.resize_type = 'IrRegular'
         self.train_tsf = transforms.Compose([
             tsf.Normalizer(),
             tsf.Augmenter(),
-            self.resize_type()
+            tsf.IrRegularResizer()
         ])
 
         self.test_tsf = transforms.Compose([
             tsf.Normalizer(),
-            self.resize_type()
+            tsf.IrRegularResizer()
         ])
 
+    """
     def resize_type(self):
-        if self.opt.batch_size == 1:
+        if self.resize_type == 'IrRegular':
             return tsf.IrRegularResizer()
-        elif self.opt.input_size[0] == self.opt.input_size[1]:
+        elif self.resize_type == 'IrRegularSquare':
             return tsf.Letterbox(self.opt.input_size, train=self.train)
         else:
             return tsf.RegularResizer(self.opt.input_size)
+    """
 
     def load_classes(self):
         # load class names (name -> label)
@@ -81,9 +86,7 @@ class CocoDataset(Dataset):
         else:
             sample = self.test_tsf(sample)
 
-        img = sample['img'].permute(2, 0, 1)
-
-        return img, sample['annot'], sample['scale']
+        return sample
 
     def load_image(self, image_index):
         image_info = self.coco.loadImgs(self.image_ids[image_index])[0]
@@ -133,6 +136,7 @@ class CocoDataset(Dataset):
     def num_classes(self):
         return 80
 
+    """
     @staticmethod
     def collate_fn(batch):
         images, targets, scale = list(zip(*batch))
@@ -142,15 +146,79 @@ class CocoDataset(Dataset):
             for i, l in enumerate(targets):
                 id = torch.tensor([[i]], dtype=torch.double).repeat(len(l), 1)
                 gt.extend(torch.cat((l, id), 1).tolist())
+            return torch.stack(images, 0), torch.tensor(gt), scale
 
-        return torch.stack(images, 0), torch.tensor(gt), scale
+        return images, torch.stack(targets, 0), scale
+    """
+
+    @staticmethod
+    def collater(data):
+        imgs = [s['img'] for s in data]
+        annots = [s['annot'] for s in data]
+        scales = [s['scale'] for s in data]
+
+        widths = [int(s.shape[0]) for s in imgs]
+        heights = [int(s.shape[1]) for s in imgs]
+        batch_size = len(imgs)
+
+        max_width = np.array(widths).max()
+        max_height = np.array(heights).max()
+
+        padded_imgs = torch.zeros(batch_size, max_width, max_height, 3)
+
+        for i in range(batch_size):
+            img = imgs[i]
+            padded_imgs[i, :int(img.shape[0]), :int(img.shape[1]), :] = img
+
+        max_num_annots = max(annot.shape[0] for annot in annots)
+
+        if max_num_annots > 0:
+            annot_padded = torch.ones((len(annots), max_num_annots, 5)) * -1
+            for idx, annot in enumerate(annots):
+                # print(annot.shape)
+                if annot.shape[0] > 0:
+                    annot_padded[idx, :annot.shape[0], :] = annot
+        else:
+            annot_padded = torch.ones((len(annots), 1, 5)) * -1
+
+        padded_imgs = padded_imgs.permute(0, 3, 1, 2)
+
+        return {'img': padded_imgs, 'annot': annot_padded, 'scale': scales}
+
+
+class AspectRatioBasedSampler(Sampler):
+
+    def __init__(self, data_source, batch_size, drop_last):
+        self.data_source = data_source
+        self.batch_size = batch_size
+        self.drop_last = drop_last
+        self.groups = self.group_images()
+
+    def __iter__(self):
+        random.shuffle(self.groups)
+        for group in self.groups:
+            yield group
+
+    def __len__(self):
+        if self.drop_last:
+            return len(self.data_source) // self.batch_size
+        else:
+            return (len(self.data_source) + self.batch_size - 1) // self.batch_size
+
+    def group_images(self):
+        # determine the order of the images
+        order = list(range(len(self.data_source)))
+        order.sort(key=lambda x: self.data_source.image_aspect_ratio(x))
+
+        # divide into groups, one group = one batch
+        return [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
 
 
 def show_image(img, labels):
     import matplotlib.pyplot as plt
     plt.figure(figsize=(10, 10))
     plt.subplot(1, 1, 1).imshow(img[:, :, ::-1])
-    plt.plot(labels[:, [1, 3, 3, 1, 1]].T, labels[:, [0, 0, 2, 2, 0]].T, '-')
+    plt.plot(labels[:, [0, 2, 2, 0, 0]].T, labels[:, [1, 1, 3, 3, 1]].T, '-')
     plt.show()
     pass
 
@@ -166,8 +234,7 @@ if __name__ == '__main__':
     opt.max_size = 1024
     dataset = CocoDataset(opt)
     sample = dataset.__getitem__(0)
-    dl = DataLoader(dataset, batch_size=opt.batch_size, collate_fn=dataset.collate_fn)
-    for i, (img, gt, s) in enumerate(dl):
-        img = img[0].permute(1, 2, 0).numpy()
-        gt = gt[:2, :4].numpy()
-        show_image(img, gt)
+    sampler = AspectRatioBasedSampler(dataset, batch_size=2, drop_last=False)
+    dl = DataLoader(dataset, batch_sampler=sampler, collate_fn=dataset.collater)
+    for i, sp in enumerate(dl):
+        pass

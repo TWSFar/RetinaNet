@@ -1,12 +1,70 @@
 import math
 import torch
 import torch.nn as nn
+import torch.utils.model_zoo as model_zoo
+model_urls = {
+    'resnet18': 'https://download.pytorch.org/models/resnet18-5c106cde.pth',
+    'resnet34': 'https://download.pytorch.org/models/resnet34-333f7ec4.pth',
+    'resnet50': 'https://download.pytorch.org/models/resnet50-19c8e357.pth',
+    'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
+    'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
+}
 
 
 def conv3x3(in_planes, out_planes, stride=1):
     """3x3 convolution with padding"""
     return nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
+
+
+class PyramidFeatures(nn.Module):
+    def __init__(self, C3_size, C4_size, C5_size, feature_size=256):
+        super(PyramidFeatures, self).__init__()
+
+        # upsample C5 to get P5 from the FPN paper
+        self.P5_1 = nn.Conv2d(C5_size, feature_size, kernel_size=1, stride=1, padding=0)
+        self.P5_upsampled = nn.Upsample(scale_factor=2, mode='nearest')
+        self.P5_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
+
+        # add P5 elementwise to C4
+        self.P4_1 = nn.Conv2d(C4_size, feature_size, kernel_size=1, stride=1, padding=0)
+        self.P4_upsampled = nn.Upsample(scale_factor=2, mode='nearest')
+        self.P4_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
+
+        # add P4 elementwise to C3
+        self.P3_1 = nn.Conv2d(C3_size, feature_size, kernel_size=1, stride=1, padding=0)
+        self.P3_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
+
+        # "P6 is obtained via a 3x3 stride-2 conv on C5"
+        self.P6 = nn.Conv2d(C5_size, feature_size, kernel_size=3, stride=2, padding=1)
+
+        # "P7 is computed by applying ReLU followed by a 3x3 stride-2 conv on P6"
+        self.P7_1 = nn.ReLU()
+        self.P7_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=2, padding=1)
+
+    def forward(self, inputs):
+
+        C3, C4, C5 = inputs
+
+        P5_x = self.P5_1(C5)
+        P5_upsampled_x = self.P5_upsampled(P5_x)
+        P5_x = self.P5_2(P5_x)
+
+        P4_x = self.P4_1(C4)
+        P4_x = P5_upsampled_x + P4_x
+        P4_upsampled_x = self.P4_upsampled(P4_x)
+        P4_x = self.P4_2(P4_x)
+
+        P3_x = self.P3_1(C3)
+        P3_x = P3_x + P4_upsampled_x
+        P3_x = self.P3_2(P3_x)
+
+        P6_x = self.P6(C5)
+
+        P7_x = self.P7_1(P6_x)
+        P7_x = self.P7_2(P7_x)
+
+        return [P3_x, P4_x, P5_x, P6_x, P7_x]
 
 
 class BasicBlock(nn.Module):
@@ -82,7 +140,7 @@ class Bottleneck(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, num_classes, block, layers):
+    def __init__(self, block, layers):
         self.inplanes = 64
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
@@ -140,12 +198,7 @@ class ResNet(nn.Module):
 
     def forward(self, inputs):
 
-        if self.training:
-            img_batch, annotations = inputs
-        else:
-            img_batch = inputs
-
-        x = self.conv1(img_batch)
+        x = self.conv1(inputs)
         x = self.bn1(x)
         x = self.relu(x)
         x = self.maxpool(x)
@@ -160,59 +213,39 @@ class ResNet(nn.Module):
         return features
 
 
-class PyramidFeatures(nn.Module):
-    def __init__(self, C3_size, C4_size, C5_size, feature_size=256):
-        super(PyramidFeatures, self).__init__()
-
-        # upsample C5 to get P5 from the FPN paper
-        self.P5_1 = nn.Conv2d(C5_size, feature_size, kernel_size=1, stride=1, padding=0)
-        self.P5_upsampled = nn.Upsample(scale_factor=2, mode='nearest')
-        self.P5_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
-
-        # add P5 elementwise to C4
-        self.P4_1 = nn.Conv2d(C4_size, feature_size, kernel_size=1, stride=1, padding=0)
-        self.P4_upsampled = nn.Upsample(scale_factor=2, mode='nearest')
-        self.P4_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
-
-        # add P4 elementwise to C3
-        self.P3_1 = nn.Conv2d(C3_size, feature_size, kernel_size=1, stride=1, padding=0)
-        self.P3_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
-
-        # "P6 is obtained via a 3x3 stride-2 conv on C5"
-        self.P6 = nn.Conv2d(C5_size, feature_size, kernel_size=3, stride=2, padding=1)
-
-        # "P7 is computed by applying ReLU followed by a 3x3 stride-2 conv on P6"
-        self.P7_1 = nn.ReLU()
-        self.P7_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=2, padding=1)
-
-    def forward(self, inputs):
-
-        C3, C4, C5 = inputs
-
-        P5_x = self.P5_1(C5)
-        P5_upsampled_x = self.P5_upsampled(P5_x)
-        P5_x = self.P5_2(P5_x)
-
-        P4_x = self.P4_1(C4)
-        P4_x = P5_upsampled_x + P4_x
-        P4_upsampled_x = self.P4_upsampled(P4_x)
-        P4_x = self.P4_2(P4_x)
-
-        P3_x = self.P3_1(C3)
-        P3_x = P3_x + P4_upsampled_x
-        P3_x = self.P3_2(P3_x)
-
-        P6_x = self.P6(C5)
-
-        P7_x = self.P7_1(P6_x)
-        P7_x = self.P7_2(P7_x)
-
-        return [P3_x, P4_x, P5_x, P6_x, P7_x]
+def resnet50(pretrained=True, **kwargs):
+    model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
+    if pretrained:
+        try:
+            weight_path = "/home/twsf/.cache/torch/checkpoints/resnet50-19c8e357.pth"
+            chkpt = torch.load(weight_path)
+            model_dict = model.state_dict()
+            new_dict = {k: v for k, v in chkpt.items() if k in model_dict.keys() and 'fc' not in k}
+            model_dict.update(new_dict)
+            model.load_state_dict(model_dict)
+        except:
+            model.load_state_dict(model_zoo.load_url(model_urls['resnet50']))
+    return model
 
 
-def FPN_resnet50():
-    pass
+def resnet101(pretrained=True, **kwargs):
+    model = ResNet(Bottleneck, [3, 4, 23, 3], **kwargs)
+    if pretrained:
+        try:
+            weight_path = "/home/twsf/.cache/torch/checkpoints/resnet101.pth"
+            chkpt = torch.load(weight_path)
+            model_dict = model.state_dict()
+            new_dict = {k: v for k, v in chkpt.items() if k in model_dict.keys() and 'fc' not in k}
+            model_dict.update(new_dict)
+            model.load_state_dict(model_dict)
+        except:
+            model.load_state_dict(model_zoo.load_url(model_urls['resnet101']))
+    return model
 
 
-def FPN_resnet101():
-    pass
+if __name__ == "__main__":
+    model = resnet50()
+    model.cuda()
+    input = torch.rand(2, 3, 512, 512).cuda()
+    res = model(input)
+    print(model)

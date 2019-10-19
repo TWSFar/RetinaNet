@@ -6,17 +6,20 @@ import torch
 
 class IrRegularResizer(object):
     """Convert ndarrays in sample to Tensors."""
+    def __init__(self, min_side=608, max_side=1024):
+        self.min_side = min_side
+        self.max_side = max_side
 
-    def __call__(self, sample, min_side=608, max_side=1024):
+    def __call__(self, sample):
         image, annots = sample['img'], sample['annot']
         H, W, _ = image.shape
         smallest_side = min(H, W)
         largest_side = max(H, W)
 
         # rescale the image so the smallest side is min_side
-        scale = min_side / smallest_side
-        if largest_side * scale > max_side:
-            scale = max_side / largest_side
+        scale = self.min_side / smallest_side
+        if largest_side * scale > self.max_side:
+            scale = self.max_side / largest_side
 
         # resize the image with the computed scale
         new_size = (int(round(W*scale)), int(round((H*scale))))
