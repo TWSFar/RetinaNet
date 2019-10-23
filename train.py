@@ -1,218 +1,223 @@
 import os
-import visdom
-import os.path as osp
+import fire
+import json
+import collections
 import numpy as np
 
-from dataloaders.Detection_Dataset import Detection_Dataset
-from model.DSSD import DSSD
-from model.multibox_loss import MultiBoxLoss
-from utils.config import cfg
-from utils.calculate_weights import calculate_weigths_labels
-from utils.lr_scheduler import LR_Scheduler
-from utils.visualization import create_vis_plot, update_vis_plot, model_info
+from dataloaders import make_data_loader
+from models.retinanet import RetinaNet
+from utils.config import opt
+from utils.visualization import TensorboardSummary
 from utils.saver import Saver
-from utils.timer import Timer
-from mypath import Path
-from eval import Evaluator
 
 import torch
-import torch.utils.data as data
+import torch.optim as optim
+
+from pycocotools.cocoeval import COCOeval
+
 import multiprocessing
 multiprocessing.set_start_method('spawn', True)
 
 
 class Trainer(object):
-    def __init__(self, args):
-        self.args = args
-        self.cfg = cfg
-        self.time = Timer()
-
+    def __init__(self):
         # Define Saver
-        self.saver = Saver(args, cfg)
+        self.saver = Saver(opt)
         self.saver.save_experiment_config()
 
+        # visualize
+        if opt.visualize:
+            self.summary = TensorboardSummary(self.saver.experiment_dir)
+            self.writer = self.summary.create_summary()
+
         # Define Dataloader
-        train_dataset = Detection_Dataset(args, cfg, cfg.train_split, 'train')
-        self.num_classes = train_dataset.num_classes
-        self.input_size = train_dataset.input_size
-        self.train_loader = data.DataLoader(
-                train_dataset, batch_size=args.batch_size,
-                num_workers=self.args.workers,
-                shuffle=True,
-                pin_memory=True,
-                drop_last=True,
-                collate_fn=train_dataset.collate_fn)
-        self.num_batch = len(self.train_loader)
+        # train dataset
+        self.train_dataset, self.train_loader = make_data_loader(opt, train=True)
+        self.num_img_tr = len(self.train_loader)
+
+        # val dataset
+        self.val_dataset, self.val_loader = make_data_loader(opt, train=False)
+
+        self.num_classes = self.train_dataset.num_classes
 
         # Define Network
         # initilize the network here.
-        if args.net == 'resnet':
-            model = DSSD(args=args,
-                         cfg=cfg,
-                         net=args.net,
-                         output_stride=32,
-                         num_classes=self.num_classes,
-                         img_size=self.input_size,
-                         pretrained=True)
-        else:
-            NotImplementedError
-
-        train_params = [{'params': model.get_1x_lr_params(), 'lr': cfg.lr},
-                        {'params': model.get_10x_lr_params(), 'lr': cfg.lr * 10}]
+        self.model = RetinaNet(opt, self.num_classes)
+        self.model = self.model.to(opt.device)
 
         # Define Optimizer
-        optimizer = torch.optim.SGD(train_params,
-                                    momentum=cfg.lr,
-                                    weight_decay=cfg.weight_decay,
-                                    nesterov=False)
-
-        # Define Criterion
-        # Whether to use class balanced weights
-        if args.use_balanced_weights:
-            classes_weights_path = os.path.join(Path.db_root_dir(args.dataset))
-            if osp.isfile(classes_weights_path):
-                weight = np.load(classes_weights_path)
-            else:
-                weight = calculate_weigths_labels(args.dataset,
-                                                  self.train_loader,
-                                                  cfg.num_classes)
-            weight = torch.from_numpy(weight.astype(np.float32))
-        else:
-            weight = None
-        self.criterion = MultiBoxLoss(args, cfg, self.num_classes, weight)
-        self.model, self.optimizer = model, optimizer
+        self.optimizer = optim.Adam(self.model.parameters(), lr=opt.lr)
 
         # Define lr scherduler
-        self.scheduler = LR_Scheduler(args.lr_scheduler,
-                                      cfg.lr,
-                                      args.epochs,
-                                      len(self.train_loader))
-
+        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+            self.optimizer, patience=3, verbose=True)
         # Resuming Checkpoint
         self.best_pred = 0.0
-        if args.resume is not None:
-            if not os.path.isfile(args.resume):
-                raise RuntimeError("=> no checkpoint found at '{}'".format(args.resume))
-            checkpoint = torch.load(args.resume)
-            args.start_epoch = checkpoint['epoch']
-            self.model.load_state_dict(checkpoint['state_dict'])
-            if not args.ft:
-                self.optimizer.load_state_dict(checkpoint['optimizer'])
-            self.best_pred = checkpoint['best_pred']
-            print("=> loaded checkpoint '{}' (epoch {})"
-                  .format(args.resume, checkpoint['epoch']))
+        self.start_epoch = opt.start_epoch
+        if opt.resume:
+            if os.path.isfile(opt.pre):
+                print("=> loading checkpoint '{}'".format(opt.pre))
+                checkpoint = torch.load(opt.pre)
+                opt.start_epoch = checkpoint['epoch']
+                self.best_pred = checkpoint['best_pred']
+                self.model.load_state_dict(checkpoint['state_dict'])
+                print("=> loaded checkpoint '{}' (epoch {})"
+                      .format(opt.pre, checkpoint['epoch']))
+            else:
+                print("=> no checkpoint found at '{}'".format(opt.pre))
 
-        # Using cuda
-        # self.optimizer = self.model.to(self.args.device)
-        self.model = self.model.to(self.args.device)
-        if args.ng > 1 and args.use_multi_gpu:
+        # Using mul gpu
+        if len(opt.gpu_id) > 1:
             print("Using multiple gpu")
             self.model = torch.nn.DataParallel(self.model,
-                                               device_ids=args.gpu_ids)
-        # Clear start epoch if fine-tuning
-        if args.ft:
-            self.start_epoch = 0
-        else:
-            self.start_epoch = args.start_epoch
+                                               device_ids=opt.gpu_id)
 
-        # Visdom
-        if args.visdom:
-            vis = visdom.Visdom()
-            vis_legend = ['Loss_local', 'Loss_confidence', 'mAP', 'mF1']
-            self.epoch_plot = create_vis_plot(vis, 'Epoch', 'Loss', 'train loss', vis_legend[0:2])
-            self.batch_plot = create_vis_plot(vis, 'Batch', 'Loss', 'batch loss', vis_legend[0:2])
-            self.val_plot = create_vis_plot(vis, 'Epoch', 'result', 'val loss', vis_legend[2:4])
-            self.vis = vis
-            self.vis_legend = vis_legend
-        model_info(self.model)
+        self.loss_hist = collections.deque(maxlen=500)
 
     def training(self, epoch):
-        self.time.epoch()
         self.model.train()
-        ave_loss_l = 0.
-        ave_loss_c = 0.
-        for ii, (images, targets, _, _) in enumerate(self.train_loader):
-            num_target = [len(ann) for ann in targets]
-            # continue if exist image no target.
-            if 0 in num_target:
+        if len(opt.gpu_id) > 0:
+            self.model.module.freeze_bn()
+        else:
+            self.model.freeze_bn()
+        epoch_loss = []
+        for iter_num, data in enumerate(self.train_loader):
+            try:
+                self.optimizer.zero_grad()
+                imgs = data['img'].to(opt.device)
+                target = data['annot'].to(opt.device)
+
+                cls_loss, loc_loss = self.model([imgs, target])
+
+                cls_loss = cls_loss.mean()
+                loc_loss = loc_loss.mean()
+                loss = cls_loss + loc_loss
+
+                if bool(loss == 0):
+                    continue
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.1)
+                self.optimizer.step()
+                self.loss_hist.append(float(loss))
+                epoch_loss.append(float(loss))
+
+                # visualize
+                global_step = iter_num + self.num_img_tr * epoch
+                self.writer.add_scalar('train/cls_loss_epoch', cls_loss.cpu().item(), global_step)
+                self.writer.add_scalar('train/loc_loss_epoch', loc_loss.cpu().item(), global_step)
+                # if (iter_num + 1) % opt.plot_every == 0:
+                #     self.summary.visualize_image(self.writer, opt.dataset, imgs, target, output, global_step)
+                if global_step % opt.print_freq == 0:
+                    printline = 'Epoch: {} | Iteration: {} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'
+                    print(printline.format(
+                        epoch, iter_num,
+                        float(cls_loss), float(loc_loss),
+                        np.mean(self.loss_hist)))
+
+                del cls_loss
+                del loc_loss
+
+            except Exception as e:
+                print(e)
                 continue
-            self.time.batch()
-            images = images.to(self.args.device)
-            targets = [ann.to(self.args.device) for ann in targets]
-            self.scheduler(self.optimizer, ii, epoch, self.best_pred)
-            self.optimizer.zero_grad()
 
-            output = self.model(images)
+        self.scheduler.step(np.mean(epoch_loss))
 
-            loss_l, loss_c = self.criterion(output, targets)
-            loss = loss_l + loss_c
-            ave_loss_c += (loss_c - ave_loss_c) / (ii + 1)
-            ave_loss_l += (loss_l - ave_loss_l) / (ii + 1)
-            assert not torch.isnan(loss), 'WARNING: nan loss detected, ending training'
-            loss.backward()
-            self.optimizer.step()
+    def validate(self, epoch):
+        self.model.eval()
+        # start collecting results
+        with torch.no_grad():
+            results = []
+            image_ids = []
+            for index, data in enumerate(self.val_loader):
+                scale = data['scale'][0]
+                img = data['img'].to(opt.device).float()
 
-            # visdom
-            if self.args.visdom:
-                update_vis_plot(self.vis, ii, [loss_l, loss_c], self.batch_plot, 'append')
+                # run network
+                scores, labels, boxes = self.model(img)
+                scores = scores.cpu()
+                labels = labels.cpu()
+                boxes = boxes.cpu()
 
-            show_info = '[mode: train' +\
-                'Epoch: [%d][%d/%d], ' % (epoch, ii, self.num_batch) +\
-                'lr: %5.4g, ' % self.optimizer.param_groups[0]['lr'] +\
-                'loc_loss: %5.3g, conf_loss: %5.3g, time: %5.2gs]' %\
-                (loss_l, loss_c, self.time.batch())
-            if (ii + 1) % 50 == 0:
-                print(show_info)
+                # correct boxes for image scale
+                boxes = boxes / scale
 
-            # Save log info
-            self.saver.save_log(show_info)
+                if boxes.shape[0] > 0:
+                    # change to (x, y, w, h) (MS COCO standard)
+                    boxes[:, 2] -= boxes[:, 0]
+                    boxes[:, 3] -= boxes[:, 1]
 
-        epoch_show_info = '[mode: train, ' +\
-            'Epoch: [%d], ' % epoch +\
-            'lr: %5.4g, ' % self.optimizer.param_groups[0]['lr'] +\
-            'average_loc_loss: %5.3g, ' % ave_loss_l +\
-            'average_conf_loss: %5.3g, ' % ave_loss_c +\
-            'time: %5.2gm]' % self.time.epoch()
-        print(epoch_show_info)
+                    # compute predicted labels and scores
+                    # for box, score, label in zip(boxes[0], scores[0], labels[0]):
+                    for box_id in range(boxes.shape[0]):
+                        score = float(scores[box_id])
+                        label = int(labels[box_id])
+                        box = boxes[box_id, :]
 
-        # Save log info
-        self.saver.save_log(epoch_show_info)
+                        # scores are sorted, so we can break
+                        if score < opt.pst_thd:
+                            break
 
-        # visdom
-        if self.args.visdom:
-            update_vis_plot(self.vis, epoch, [ave_loss_l, ave_loss_c], self.epoch_plot, 'append')
+                        # append detection for each positively labeled class
+                        image_result = {
+                            'image_id': self.val_dataset.image_ids[index],
+                            'category_id': self.val_dataset.label_to_coco_label(label),
+                            'score': float(score),
+                            'bbox': box.tolist(),
+                        }
+
+                        # append detection to results
+                        results.append(image_result)
+
+                # append image to list of processed images
+                image_ids.append(self.val_dataset.image_ids[index])
+
+                # print progress
+                print('{}/{}'.format(index, len(self.val_dataset)), end='\r')
+
+            if not len(results):
+                return
+
+            # write output
+            json.dump(results, open('run/coco/{}_bbox_results.json'.format(self.val_dataset.set_name), 'w'), indent=4)
+
+            # load results in COCO evaluation tool
+            coco_true = self.val_dataset.coco
+            coco_pred = coco_true.loadRes('run/coco/{}_bbox_results.json'.format(self.val_dataset.set_name))
+
+            # run COCO evaluation
+            coco_eval = COCOeval(coco_true, coco_pred, 'bbox')
+            coco_eval.params.imgIds = image_ids
+            coco_eval.evaluate()
+            coco_eval.accumulate()
+            coco_eval.summarize()
+
+            return
 
 
-def main():
-    from utils.hyp import parse_args
-    args = parse_args()
+def train(**kwargs):
+    opt._parse(kwargs)
+    trainer = Trainer()
 
-    trainer = Trainer(args)
-    evaluator = Evaluator(args)
-    for epoch in range(trainer.start_epoch, args.epochs):
+    print('Num training images: {}'.format(len(trainer.train_dataset)))
+
+    for epoch in range(opt.start_epoch, opt.epochs):
+        # train
         trainer.training(epoch)
-        if not args.no_val and epoch % args.validate == (args.validate - 1):
-            map, mf1 = evaluator.validation(trainer.model, epoch)
-            val_svar_pf = '[mode: val ' +\
-                'mAP: %5.4g, ' % map +\
-                'mF1: %5.4g]' % mf1
-            trainer.saver.save_log(val_svar_pf)
-            if args.visdom:
-                update_vis_plot(trainer.vis, epoch, [map, mf1], trainer.val_plot, 'append')
 
-        if evaluator.is_best:
-            trainer.best_pred = evaluator.new_pred
+        # val
+        trainer.validate(epoch)
 
-        if args.is_save:
-            # save checkpoint every epoch
+        if (epoch % 10 == 0 and epoch != 0):
             trainer.saver.save_checkpoint({
-                'epoch': epoch,
-                'state_dict': trainer.model.module.state_dict() \
-                    if args.ng > 1 and args.use_multi_gpu else trainer.model.state_dict(),
+                'epoch': epoch + 1,
+                'state_dict': trainer.model.module.state_dict() if len(opt.gpu_id) > 1
+                else trainer.model.state_dict(),
+                'best_pred': trainer.best_pred,
                 'optimizer': trainer.optimizer.state_dict(),
-                'best_pred': evaluator.best_pred,
-            }, evaluator.is_best)
+            }, is_best=False)
 
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    train()
+    # fire.Fire(train)

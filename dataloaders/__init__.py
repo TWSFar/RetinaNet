@@ -5,18 +5,21 @@ from torch.utils.data import DataLoader
 def make_data_loader(opt, train=True):
 
     if opt.dataset in ['coco', 'COCO', 'Coco']:
-        # train dataset
+        batch_size = opt.batch_size
+
         if train:
             set_name = 'train2017'
         else:
             set_name = 'val2017'
+            batch_size = 1
+
         dataset = coco.CocoDataset(opt, set_name=set_name, train=train)
         sampler = coco.AspectRatioBasedSampler(
             dataset,
-            batch_size=opt.batch_size,
+            batch_size=batch_size,
             drop_last=False)
         dataloader = DataLoader(dataset,
-                                num_workers=opt.worker,
+                                num_workers=opt.workers,
                                 collate_fn=dataset.collater,
                                 batch_sampler=sampler)
 

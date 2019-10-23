@@ -26,7 +26,7 @@ class CocoDataset(Dataset):
             transform (callable, optional): Optional transform to be applied
                 on a sample.
         """
-        self.opt = opt
+        # self.opt = opt
         self.root_dir = opt.root_dir
         self.anno_dir = osp.join(self.root_dir, 'annotations')
         self.set_name = set_name
@@ -133,6 +133,7 @@ class CocoDataset(Dataset):
         image = self.coco.loadImgs(self.image_ids[image_index])[0]
         return float(image['width']) / float(image['height'])
 
+    @property
     def num_classes(self):
         return 80
 
