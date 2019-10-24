@@ -8,5 +8,4 @@ __pycache__/
 
 # Distribution / packaging
 run/
-data/
 .debug.py
