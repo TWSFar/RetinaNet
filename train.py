@@ -6,6 +6,7 @@ import numpy as np
 
 from dataloaders import make_data_loader
 from models.retinanet import RetinaNet
+from models.functions import losses
 from utils.config import opt
 from utils.visualization import TensorboardSummary
 from utils.saver import Saver
@@ -33,12 +34,12 @@ class Trainer(object):
         # Define Dataloader
         # train dataset
         self.train_dataset, self.train_loader = make_data_loader(opt, train=True)
-        self.num_img_tr = len(self.train_loader)
+        self.num_bt_tr = len(self.train_loader)
+        self.num_classes = self.train_dataset.num_classes
 
         # val dataset
         self.val_dataset, self.val_loader = make_data_loader(opt, train=False)
-
-        self.num_classes = self.train_dataset.num_classes
+        self.num_bt_val = len(self.val_loader)
 
         # Define Network
         # initilize the network here.
@@ -51,6 +52,7 @@ class Trainer(object):
         # Define lr scherduler
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
             self.optimizer, patience=3, verbose=True)
+
         # Resuming Checkpoint
         self.best_pred = 0.0
         self.start_epoch = opt.start_epoch
@@ -102,11 +104,10 @@ class Trainer(object):
                 epoch_loss.append(float(loss))
 
                 # visualize
-                global_step = iter_num + self.num_img_tr * epoch
+                global_step = iter_num + self.num_bt_tr * epoch
                 self.writer.add_scalar('train/cls_loss_epoch', cls_loss.cpu().item(), global_step)
                 self.writer.add_scalar('train/loc_loss_epoch', loc_loss.cpu().item(), global_step)
-                # if (iter_num + 1) % opt.plot_every == 0:
-                #     self.summary.visualize_image(self.writer, opt.dataset, imgs, target, output, global_step)
+
                 if global_step % opt.print_freq == 0:
                     printline = 'Epoch: {} | Iteration: {} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'
                     print(printline.format(
@@ -132,6 +133,7 @@ class Trainer(object):
             for index, data in enumerate(self.val_loader):
                 scale = data['scale'][0]
                 img = data['img'].to(opt.device).float()
+                target = data['annot']
 
                 # run network
                 scores, labels, boxes = self.model(img)
@@ -174,6 +176,16 @@ class Trainer(object):
 
                 # print progress
                 print('{}/{}'.format(index, len(self.val_dataset)), end='\r')
+
+                # visualize
+                global_step = index + self.num_bt_tr * epoch
+                if global_step % opt.plot_every == 0:
+                    ouput = torch.cat((boxes, labels.float().unsqueeze(1), scores.unsqueeze(1)), dim=1)
+                    self.summary.visualize_image(
+                        self.writer,
+                        img[0], target[0], ouput,
+                        self.val_dataset.labels,
+                        global_step)
 
             if not len(results):
                 return

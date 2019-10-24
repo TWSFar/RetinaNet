@@ -50,8 +50,8 @@ class Config:
 
     # visual
     visualize = True
-    print_freq = 1
-    plot_every = 10  # every n batch plot
+    print_freq = 10
+    plot_every = 50  # every n batch plot
 
     seed = time.time()
 

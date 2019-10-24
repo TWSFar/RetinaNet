@@ -32,7 +32,10 @@ class IrRegularResizer(object):
         new_image = np.zeros((H + pad_h, W + pad_w, C)).astype(np.float32)
         new_image[:H, :W, :] = image.astype(np.float32)
 
-        annots[:, :4] *= scale
+        try:
+            annots[:, :4] *= scale
+        except:
+            annots = np.array([])
 
         return {'img': torch.from_numpy(new_image), 'annot': torch.from_numpy(annots), 'scale': scale}
 
