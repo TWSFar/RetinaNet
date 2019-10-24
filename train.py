@@ -6,7 +6,6 @@ import numpy as np
 
 from dataloaders import make_data_loader
 from models.retinanet import RetinaNet
-from models.functions import losses
 from utils.config import opt
 from utils.visualization import TensorboardSummary
 from utils.saver import Saver
@@ -141,6 +140,16 @@ class Trainer(object):
                 labels = labels.cpu()
                 boxes = boxes.cpu()
 
+                # visualize
+                global_step = index + self.num_bt_tr * epoch
+                if global_step % opt.plot_every == 0:
+                    ouput = torch.cat((boxes, labels.float().unsqueeze(1), scores.unsqueeze(1)), dim=1)
+                    self.summary.visualize_image(
+                        self.writer,
+                        img[0], target[0], ouput,
+                        self.val_dataset.labels,
+                        global_step)
+
                 # correct boxes for image scale
                 boxes = boxes / scale
 
@@ -176,16 +185,6 @@ class Trainer(object):
 
                 # print progress
                 print('{}/{}'.format(index, len(self.val_dataset)), end='\r')
-
-                # visualize
-                global_step = index + self.num_bt_tr * epoch
-                if global_step % opt.plot_every == 0:
-                    ouput = torch.cat((boxes, labels.float().unsqueeze(1), scores.unsqueeze(1)), dim=1)
-                    self.summary.visualize_image(
-                        self.writer,
-                        img[0], target[0], ouput,
-                        self.val_dataset.labels,
-                        global_step)
 
             if not len(results):
                 return

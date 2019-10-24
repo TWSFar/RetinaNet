@@ -30,6 +30,7 @@ class Config:
     resume = False
     min_size = 608
     max_size = 1024
+    pre = ''
 
     # train
     batch_size = 2

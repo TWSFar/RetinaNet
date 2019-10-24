@@ -234,7 +234,7 @@ if __name__ == '__main__':
     opt.min_side = 608
     opt.max_size = 1024
     dataset = CocoDataset(opt)
-    print(dataset.labels[0])
+    print(dataset.labels)
     sample = dataset.__getitem__(0)
     sampler = AspectRatioBasedSampler(dataset, batch_size=2, drop_last=False)
     dl = DataLoader(dataset, batch_sampler=sampler, collate_fn=dataset.collater)
