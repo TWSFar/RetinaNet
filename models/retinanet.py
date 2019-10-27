@@ -1,9 +1,8 @@
 import math
+import numpy as np
 import torch
 import torch.nn as nn
-import sys
-import os.path as osp
-sys.path.insert(0, osp.join(osp.dirname(osp.abspath(__file__)), '../'))
+
 from models.classification import ClassificationModel
 from models.regression import RegressionModel
 from models.backbones.resnet import resnet50, resnet101
@@ -66,24 +65,38 @@ class RetinaNet(nn.Module):
             transformed_anchors = self.regressBoxes(anchors, regression)
             transformed_anchors = self.clipBoxes(transformed_anchors, img_batch)
 
-            scores = torch.max(classification, dim=2, keepdim=True)[0]
+            scores, class_id = torch.max(classification, dim=2, keepdim=True)
 
             scores_over_thresh = (scores > self.pst_thd)[0, :, 0]
 
+            nms_scores = torch.zeros(0).to(device)
+            nms_class = torch.zeros(0).to(device)
+            nms_bbox = torch.zeros(0, 4).to(device)
             if scores_over_thresh.sum() == 0:
                 # no boxes to NMS, just return
-                return torch.zeros(0).to(device), torch.zeros(0).to(device), torch.zeros(0, 4).to(device)
+                return nms_scores, nms_class, nms_bbox
 
             classification = classification[:, scores_over_thresh, :]
             transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
             scores = scores[:, scores_over_thresh, :]
             bbox = torch.cat([transformed_anchors, scores], dim=2)[0, :, :]
+            class_id = class_id[:, scores_over_thresh, :][0].squeeze(1)
+            scores = scores[0].squeeze(1)
 
-            anchors_nms_idx = nms(bbox.cpu().numpy(), self.nms_thd)
+            nms_class = nms_class.type_as(class_id)
+            nms_scores = nms_scores.type_as(scores)
+            nms_bbox = nms_bbox.type_as(bbox)
+            for c in class_id.unique():
+                idx = class_id == c
+                b = bbox[idx]
+                c = class_id[idx]
+                s = scores[idx]
+                nms_idx = nms(b.cpu().numpy(), self.nms_thd)
+                nms_class = torch.cat((nms_class, c[nms_idx]), dim=0)
+                nms_scores = torch.cat((nms_scores, s[nms_idx]), dim=0)
+                nms_bbox = torch.cat((nms_bbox, b[nms_idx, :4]), dim=0)
 
-            nms_scores, nms_class = classification[0, anchors_nms_idx, :].max(dim=1)
-
-            return nms_scores, nms_class, transformed_anchors[0, anchors_nms_idx, :]
+            return nms_scores, nms_class, nms_bbox
 
 
 if __name__ == "__main__":

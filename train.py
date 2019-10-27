@@ -6,7 +6,7 @@ import numpy as np
 
 from dataloaders import make_data_loader
 from models.retinanet import RetinaNet
-from utils.config import opt
+from utils.visdrone_config import opt
 from utils.visualization import TensorboardSummary
 from utils.saver import Saver
 
@@ -206,6 +206,14 @@ class Trainer(object):
             return
 
 
+def eval(**kwargs):
+    opt._parse(kwargs)
+    trainer = Trainer()
+    print('Num evaluating images: {}'.format(len(trainer.val_dataset)))
+
+    trainer.validate(trainer.start_epoch)
+
+
 def train(**kwargs):
     opt._parse(kwargs)
     trainer = Trainer()
@@ -219,7 +227,7 @@ def train(**kwargs):
         # val
         trainer.validate(epoch)
 
-        if (epoch % 10 == 0 and epoch != 0):
+        if (epoch % opt.saver_freq == 0):
             trainer.saver.save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': trainer.model.module.state_dict() if len(opt.gpu_id) > 1
@@ -230,5 +238,5 @@ def train(**kwargs):
 
 
 if __name__ == '__main__':
-    train()
-    # fire.Fire(train)
+    # train()
+    fire.Fire(train)

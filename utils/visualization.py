@@ -10,23 +10,28 @@ from dataloaders.transform import UnNormalizer
 
 def plot_img(img, bboxes, id2name):
     for bbox in bboxes:
-        x1 = int(bbox[0])
-        y1 = int(bbox[1])
-        x2 = int(bbox[2])
-        y2 = int(bbox[3])
-        id = int(bbox[4])
-        label = id2name[id]
+        try:
+            x1 = int(bbox[0])
+            y1 = int(bbox[1])
+            x2 = int(bbox[2])
+            y2 = int(bbox[3])
+            id = int(bbox[4])
+            label = id2name[id]
 
-        if len(bbox) == 6:
-            label = label + '{:.2}'.format(bbox[5])
+            if len(bbox) == 6:
+                label = label + '/{:.2}'.format(bbox[5])
 
-        # plot
-        t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)[0]
-        c1 = (x1, y1 - t_size[1]-1)
-        c2 = (x1 + t_size[0], y1)
-        cv2.rectangle(img, c1, c2, color=(0, 0, 1), thickness=-1)
-        cv2.putText(img, label, (x1, y1-1), cv2.FONT_HERSHEY_COMPLEX, 0.4, (1, 1, 1), 1)
-        cv2.rectangle(img, (x1, y1), (x2, y2), color=(0, 0, 1), thickness=2)
+            # plot
+            t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)[0]
+            c1 = (x1, y1 - t_size[1] - 4)
+            c2 = (x1 + t_size[0], y1)
+            cv2.rectangle(img, c1, c2, color=(1, 0, 0), thickness=-1)
+            cv2.putText(img, label, (x1, y1-4), cv2.FONT_HERSHEY_COMPLEX, 0.4, (1, 1, 1), 1)
+            cv2.rectangle(img, (x1, y1), (x2, y2), color=(1, 0, 0), thickness=2)
+
+        except Exception as e:
+            print(e)
+            continue
 
     return img
 

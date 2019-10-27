@@ -25,7 +25,7 @@ def select_device(force_cpu=False):
 
 class Config:
     # data
-    dataset = "coco"
+    dataset = "visdrone"
     root_dir = Path.db_root_dir(dataset)
     resume = False
     min_size = 608
@@ -33,26 +33,27 @@ class Config:
     pre = ''
 
     # train
-    batch_size = 2
+    batch_size = 12
     start_epoch = 0
     epochs = 50
-    workers = 3
+    workers = 1
 
     # param for optimizer
-    lr = 1e-5
-    momentum = 0.995
+    lr = 0.0002
+    momentum = 0.9
     decay = 5*1e-4
     steps = [0.8, 0.9]
     scales = 0.3
 
     # parameters
-    pst_thd = 0.05
+    pst_thd = 0.01
     nms_thd = 0.5
 
     # visual
     visualize = True
     print_freq = 10
     plot_every = 50  # every n batch plot
+    saver_freq = 1
 
     seed = time.time()
 
