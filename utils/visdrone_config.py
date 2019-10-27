@@ -30,7 +30,7 @@ class Config:
     resume = False
     min_size = 608
     max_size = 1024
-    pre = ''
+    pre = '/home/twsf/work/RetinaNet/run/visdrone/experiment_0/checkpoint.path.tar'
 
     # train
     batch_size = 12
@@ -46,13 +46,13 @@ class Config:
     scales = 0.3
 
     # parameters
-    pst_thd = 0.01
+    pst_thd = 0.05
     nms_thd = 0.5
 
     # visual
     visualize = True
     print_freq = 10
-    plot_every = 50  # every n batch plot
+    plot_every = 9999  # every n batch plot
     saver_freq = 1
 
     seed = time.time()

@@ -76,27 +76,36 @@ class RetinaNet(nn.Module):
                 # no boxes to NMS, just return
                 return nms_scores, nms_class, nms_bbox
 
-            classification = classification[:, scores_over_thresh, :]
+            # classification = classification[:, scores_over_thresh, :]
             transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
             scores = scores[:, scores_over_thresh, :]
-            bbox = torch.cat([transformed_anchors, scores], dim=2)[0, :, :]
             class_id = class_id[:, scores_over_thresh, :][0].squeeze(1)
+
+            bbox = torch.cat([transformed_anchors, scores], dim=2)[0, :, :]
             scores = scores[0].squeeze(1)
 
-            nms_class = nms_class.type_as(class_id)
+            """ method 1: every category along use nms
+            nms_classes = nms_class.type_as(class_id)
             nms_scores = nms_scores.type_as(scores)
-            nms_bbox = nms_bbox.type_as(bbox)
+            nms_bboxes = nms_bbox.type_as(bbox)
             for c in class_id.unique():
                 idx = class_id == c
                 b = bbox[idx]
                 c = class_id[idx]
                 s = scores[idx]
                 nms_idx = nms(b.cpu().numpy(), self.nms_thd)
-                nms_class = torch.cat((nms_class, c[nms_idx]), dim=0)
                 nms_scores = torch.cat((nms_scores, s[nms_idx]), dim=0)
-                nms_bbox = torch.cat((nms_bbox, b[nms_idx, :4]), dim=0)
+                nms_classes = torch.cat((nms_classes, c[nms_idx]), dim=0)
+                nms_bboxes = torch.cat((nms_bboxes, b[nms_idx, :4]), dim=0)
+            """
 
-            return nms_scores, nms_class, nms_bbox
+            # method 2: all category gather use nms
+            nms_idx = nms(bbox.cpu().numpy(), self.nms_thd)
+            nms_scores = scores[nms_idx]
+            nms_classes = class_id[nms_idx]
+            nms_bboxes = bbox[nms_idx, :4]
+
+            return nms_scores, nms_classes, nms_bboxes
 
 
 if __name__ == "__main__":
