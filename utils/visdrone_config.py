@@ -46,13 +46,14 @@ class Config:
     scales = 0.3
 
     # parameters
-    pst_thd = 0.05
+    pre_pst_thd = 0.05
+    post_pst_thd = 0.4
     nms_thd = 0.5
 
     # visual
     visualize = True
     print_freq = 10
-    plot_every = 9999  # every n batch plot
+    plot_every = 1  # every n batch plot
     saver_freq = 1
 
     seed = time.time()

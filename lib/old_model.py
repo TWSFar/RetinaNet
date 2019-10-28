@@ -16,6 +16,7 @@ class RetinaNet(nn.Module):
     def __init__(self, opt, num_classes=80):
         self.opt = opt
         super(RetinaNet, self).__init__()
+        self.pst_thd = self.opt.pst_thd  # positive threshold
         self.nms_thd = self.opt.nms_thd
         self.backbone = resnet50()
         # self.backbone = resnet101()
@@ -47,9 +48,14 @@ class RetinaNet(nn.Module):
         else:
             img_batch = inputs
 
+        device = img_batch.device
+
         features = self.backbone(img_batch)
+
         regression = torch.cat([self.regressionModel(feature) for feature in features], dim=1)
+
         classification = torch.cat([self.classificationModel(feature) for feature in features], dim=1)
+
         anchors = self.anchors(img_batch).to(regression.device)
 
         if self.training:
@@ -60,7 +66,46 @@ class RetinaNet(nn.Module):
 
             scores, class_id = torch.max(classification, dim=2, keepdim=True)
 
-            return scores.squeeze(2), class_id.squeeze(2), transformed_anchors
+            scores_over_thresh = (scores > self.pst_thd)[0, :, 0]
+
+            nms_scores = torch.zeros(0).to(device)
+            nms_class = torch.zeros(0).to(device)
+            nms_bbox = torch.zeros(0, 4).to(device)
+            if scores_over_thresh.sum() == 0:
+                # no boxes to NMS, just return
+                return nms_scores, nms_class, nms_bbox
+
+            # classification = classification[:, scores_over_thresh, :]
+            transformed_anchors = transformed_anchors[:, scores_over_thresh, :]
+            scores = scores[:, scores_over_thresh, :]
+            class_id = class_id[:, scores_over_thresh, :]
+
+            bbox = torch.cat([transformed_anchors, scores], dim=2)[0, :, :]
+            scores = scores[0].squeeze(1)
+            class_id = class_id[0].squeeze(1)
+
+            """ method 1: every category along use nms
+            nms_classes = nms_class.type_as(class_id)
+            nms_scores = nms_scores.type_as(scores)
+            nms_bboxes = nms_bbox.type_as(bbox)
+            for c in class_id.unique():
+                idx = class_id == c
+                b = bbox[idx]
+                c = class_id[idx]
+                s = scores[idx]
+                nms_idx = nms(b.cpu().numpy(), self.nms_thd)
+                nms_scores = torch.cat((nms_scores, s[nms_idx]), dim=0)
+                nms_classes = torch.cat((nms_classes, c[nms_idx]), dim=0)
+                nms_bboxes = torch.cat((nms_bboxes, b[nms_idx, :4]), dim=0)
+            """
+
+            # method 2: all category gather use nms
+            nms_idx = nms(bbox.cpu().numpy(), self.nms_thd)
+            nms_scores = scores[nms_idx]
+            nms_classes = class_id[nms_idx]
+            nms_bboxes = bbox[nms_idx, :4]
+
+            return nms_scores, nms_classes, nms_bboxes
 
 
 if __name__ == "__main__":

@@ -32,7 +32,6 @@ def make_data_loader(opt, train=True):
             set_name = 'train'
         else:
             set_name = 'val'
-            batch_size = 1
 
         dataset = visdrone.VisdroneDataset(opt, set_name=set_name, train=train)
         sampler = visdrone.AspectRatioBasedSampler(

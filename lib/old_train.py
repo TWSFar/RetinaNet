@@ -4,10 +4,10 @@ import json
 import collections
 import numpy as np
 
-# from models_demo import model_demo
-from models.retinanet import RetinaNet
 from dataloaders import make_data_loader
+from models.retinanet import RetinaNet
 from models.utils.functions import PostProcess
+from models_demo import model_demo
 from utils.visdrone_config import opt
 from utils.visualization import TensorboardSummary
 from utils.saver import Saver
@@ -44,12 +44,12 @@ class Trainer(object):
 
         # Define Network
         # initilize the network here.
-        self.model = RetinaNet(opt, self.num_classes)
-        # self.model = model_demo.resnet50(num_classes=10, pretrained=False)
+        # self.model = RetinaNet(opt, self.num_classes)
+        self.model = model_demo.resnet50(num_classes=10, pretrained=False)
         self.model = self.model.to(opt.device)
 
         # contain nms for val
-        self.post_pro = PostProcess(opt.pre_pst_thd, opt.post_pst_thd, opt.nms_thd)
+        self.post_pro = PostProcess(opt.pst_thd, opt.nms_thd)
 
         # Define Optimizer
         self.optimizer = optim.Adam(self.model.parameters(), lr=opt.lr)
@@ -136,81 +136,75 @@ class Trainer(object):
             results = []
             image_ids = []
             for ii, data in enumerate(self.val_loader):
-                scale = data['scale']
-                index = data['index']
+                scale = data['scale'][0]
+                index = data['index'][0]
                 img = data['img'].to(opt.device).float()
                 target = data['annot']
 
                 # run network
                 scores, labels, boxes = self.model(img)
 
-                scores_bt, labels_bt, boxes_bt = self.post_pro(scores, labels, boxes)
+                scores, labels, boxes = self.post_pro(scores, labels, boxes)
+                continue
+                scores = scores.cpu()
+                labels = labels.cpu()
+                boxes = boxes.cpu()
 
                 # visualize
                 global_step = ii + self.num_bt_val * epoch
-                if ii % opt.plot_every == 0:
-                    output = []
-                    for k in range(len(boxes_bt)):
-                        output.append(torch.cat((
-                            boxes_bt[k],
-                            labels_bt[k].unsqueeze(1).float(),
-                            scores_bt[k].unsqueeze(1)),
-                            dim=1))
+                if global_step % opt.plot_every == 0:
+                    ouput = torch.cat((boxes, labels.float().unsqueeze(1), scores.unsqueeze(1)), dim=1)
                     self.summary.visualize_image(
                         self.writer,
-                        img, target, output,
+                        img[0], target[0], ouput,
                         self.val_dataset.labels,
                         global_step)
 
-                # save json
-                for jj in range(len(boxes_bt)):
-                    boxes = boxes_bt[jj]
-                    scores = scores_bt[jj]
-                    labels = labels_bt[jj]
-                    # correct boxes for image scale
-                    boxes = boxes / scale[jj]
+                # correct boxes for image scale
+                boxes = boxes / scale
 
-                    if boxes.shape[0] > 0:
-                        # change to (x, y, w, h) (MS COCO standard)
-                        boxes[:, 2] -= boxes[:, 0]
-                        boxes[:, 3] -= boxes[:, 1]
+                if boxes.shape[0] > 0:
+                    # change to (x, y, w, h) (MS COCO standard)
+                    boxes[:, 2] -= boxes[:, 0]
+                    boxes[:, 3] -= boxes[:, 1]
 
-                        # compute predicted labels and scores
-                        # for box, score, label in zip(boxes[0], scores[0], labels[0]):
-                        for box_id in range(boxes.shape[0]):
-                            score = float(scores[box_id])
-                            label = int(labels[box_id])
-                            box = boxes[box_id, :]
+                    # compute predicted labels and scores
+                    # for box, score, label in zip(boxes[0], scores[0], labels[0]):
+                    for box_id in range(boxes.shape[0]):
+                        score = float(scores[box_id])
+                        label = int(labels[box_id])
+                        box = boxes[box_id, :]
 
-                            # append detection for each positively labeled class
-                            image_result = {
-                                'image_id': self.val_dataset.image_ids[index[jj]],
-                                'category_id': self.val_dataset.label_to_coco_label(label),
-                                'score': float(score),
-                                'bbox': box.tolist(),
-                            }
+                        # scores are sorted, so we can break
+                        if score < opt.pst_thd:
+                            break
 
-                            # append detection to results
-                            results.append(image_result)
+                        # append detection for each positively labeled class
+                        image_result = {
+                            'image_id': self.val_dataset.image_ids[index],
+                            'category_id': self.val_dataset.label_to_coco_label(label),
+                            'score': float(score),
+                            'bbox': box.tolist(),
+                        }
+
+                        # append detection to results
+                        results.append(image_result)
 
                 # append image to list of processed images
-                for idx in index:
-                    image_ids.append(self.val_dataset.image_ids[idx])
+                image_ids.append(self.val_dataset.image_ids[index])
 
                 # print progress
-                print('{}/{}'.format(ii, len(self.val_loader)), end='\r')
+                print('{}/{}'.format(ii, len(self.val_dataset)), end='\r')
 
             if not len(results):
                 return
 
             # write output
-            json.dump(results, open('run/{}/{}_bbox_results.json'.format(
-                opt.dataset, self.val_dataset.set_name), 'w'), indent=4)
+            json.dump(results, open('run/coco/{}_bbox_results.json'.format(self.val_dataset.set_name), 'w'), indent=4)
 
             # load results in COCO evaluation tool
             coco_true = self.val_dataset.coco
-            coco_pred = coco_true.loadRes('run/{}/{}_bbox_results.json'.format(
-                opt.dataset, self.val_dataset.set_name))
+            coco_pred = coco_true.loadRes('run/coco/{}_bbox_results.json'.format(self.val_dataset.set_name))
 
             # run COCO evaluation
             coco_eval = COCOeval(coco_true, coco_pred, 'bbox')
