@@ -9,3 +9,4 @@ __pycache__/
 # Distribution / packaging
 run/
 .debug.py
+models_demo/

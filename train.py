@@ -6,6 +6,7 @@ import numpy as np
 
 from dataloaders import make_data_loader
 from models.retinanet import RetinaNet
+# from models_demo import model_demo
 from utils.visdrone_config import opt
 from utils.visualization import TensorboardSummary
 from utils.saver import Saver
@@ -43,6 +44,7 @@ class Trainer(object):
         # Define Network
         # initilize the network here.
         self.model = RetinaNet(opt, self.num_classes)
+        # self.model = model_demo.resnet50(num_classes=10, pretrained=False)
         self.model = self.model.to(opt.device)
 
         # Define Optimizer
@@ -129,8 +131,9 @@ class Trainer(object):
         with torch.no_grad():
             results = []
             image_ids = []
-            for index, data in enumerate(self.val_loader):
+            for ii, data in enumerate(self.val_loader):
                 scale = data['scale'][0]
+                index = data['index'][0]
                 img = data['img'].to(opt.device).float()
                 target = data['annot']
 
@@ -141,7 +144,7 @@ class Trainer(object):
                 boxes = boxes.cpu()
 
                 # visualize
-                global_step = index + self.num_bt_tr * epoch
+                global_step = ii + self.num_bt_tr * epoch
                 if global_step % opt.plot_every == 0:
                     ouput = torch.cat((boxes, labels.float().unsqueeze(1), scores.unsqueeze(1)), dim=1)
                     self.summary.visualize_image(
@@ -184,7 +187,7 @@ class Trainer(object):
                 image_ids.append(self.val_dataset.image_ids[index])
 
                 # print progress
-                print('{}/{}'.format(index, len(self.val_dataset)), end='\r')
+                print('{}/{}'.format(ii, len(self.val_dataset)), end='\r')
 
             if not len(results):
                 return

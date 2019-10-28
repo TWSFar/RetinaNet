@@ -30,7 +30,7 @@ class Config:
     resume = False
     min_size = 608
     max_size = 1024
-    pre = '/home/twsf/work/RetinaNet/run/visdrone/experiment_0/checkpoint.path.tar'
+    pre = '/home/twsf/work/RetinaNet/run/visdrone/experiment_3/checkpoint.path.tar'
 
     # train
     batch_size = 12
