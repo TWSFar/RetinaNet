@@ -49,7 +49,7 @@ class Trainer(object):
         self.model = self.model.to(opt.device)
 
         # contain nms for val
-        self.post_pro = PostProcess(opt.pre_pst_thd, opt.post_pst_thd, opt.nms_thd)
+        self.post_pro = PostProcess(opt)
 
         # Define Optimizer
         self.optimizer = optim.Adam(self.model.parameters(), lr=opt.lr)
@@ -83,7 +83,7 @@ class Trainer(object):
 
     def training(self, epoch):
         self.model.train()
-        if len(opt.gpu_id) > 0:
+        if len(opt.gpu_id) > 1:
             self.model.module.freeze_bn()
         else:
             self.model.freeze_bn()
@@ -114,9 +114,9 @@ class Trainer(object):
                 self.writer.add_scalar('train/loc_loss_epoch', loc_loss.cpu().item(), global_step)
 
                 if global_step % opt.print_freq == 0:
-                    printline = 'Epoch: {} | Iteration: {} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'
+                    printline = 'Epoch: {}/{} | Iteration: {}/{} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'
                     print(printline.format(
-                        epoch, iter_num,
+                        epoch, opt.epochs, iter_num, self.num_bt_tr,
                         float(cls_loss), float(loc_loss),
                         np.mean(self.loss_hist)))
 
@@ -201,7 +201,7 @@ class Trainer(object):
                 print('{}/{}'.format(ii, len(self.val_loader)), end='\r')
 
             if not len(results):
-                return
+                return 0
 
             # write output
             json.dump(results, open('run/{}/{}_bbox_results.json'.format(
@@ -219,7 +219,15 @@ class Trainer(object):
             coco_eval.accumulate()
             coco_eval.summarize()
 
-            return
+            # save result
+            stats = coco_eval.stats
+            self.saver.save_coco_eval_result(stats=stats, epoch=epoch)
+
+            # visualize
+            self.writer.add_scalar('val/AP50', stats[1], epoch)
+
+            # according AP50
+            return stats[1]
 
 
 def eval(**kwargs):
@@ -241,9 +249,11 @@ def train(**kwargs):
         trainer.training(epoch)
 
         # val
-        trainer.validate(epoch)
+        ap50 = trainer.validate(epoch)
 
-        if (epoch % opt.saver_freq == 0):
+        is_best = ap50 > trainer.best_pred
+        trainer.best_pred = max(ap50, trainer.best_pred)
+        if (epoch % opt.saver_freq == 0) or is_best:
             trainer.saver.save_checkpoint({
                 'epoch': epoch + 1,
                 'state_dict': trainer.model.module.state_dict() if len(opt.gpu_id) > 1

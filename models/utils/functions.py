@@ -66,15 +66,16 @@ class ClipBoxes(nn.Module):
 
 
 class PostProcess(object):
-    def __init__(self, pre_pst_thd, post_pst_thd, nms_thd):
-        self.pre_pst_thd = pre_pst_thd
-        self.post_pst_thd = post_pst_thd
-        self.nms_thd = nms_thd
+    def __init__(self, opt):
+        self.pre_pst_thd = opt.pre_pst_thd
+        self.post_pst_thd = opt.post_pst_thd
+        self.n_pre_nms = opt.n_pre_nms
+        self.nms_thd = opt.nms_thd
         self.scr = torch.zeros(0)
         self.lab = torch.zeros(0)
         self.box = torch.zeros(0, 4)
 
-    # """ method 1: all category use nms gather
+    """ method 1: all category use nms gather
     def __call__(self, scores, labels, boxes):
         scores_list = []
         labels_list = []
@@ -109,23 +110,30 @@ class PostProcess(object):
             boxes_list.append(box[post_idx].cpu())
 
         return scores_list, labels_list, boxes_list
+    """
 
-    """ method 1: per category use nms along
-    def __call__(self, scores, labels, boxes):
+    # """ method 2: per category use nms along
+    def __call__(self, scores_bt, labels_bt, boxes_bt):
         scores_list = []
         labels_list = []
         boxes_list = []
-        for index in range(len(scores)):
-            scores_over_thresh = (scores[index] > self.pre_pst_thd)
+        desort_idx = scores_bt.argsort(dim=1, descending=True)
+        # olny use the first n which scores are the largest
+        desort_idx = desort_idx[:, :self.n_pre_nms]
+        for index in range(len(scores_bt)):
+            scores = scores_bt[index, desort_idx[index]]
+            labels = labels_bt[index, desort_idx[index]]
+            boxes = boxes_bt[index, desort_idx[index]]
+            scores_over_thresh = (scores > self.pre_pst_thd)
             if scores_over_thresh.sum() == 0:
                 scores_list.append(self.scr)
                 labels_list.append(self.lab)
                 boxes_list.append(self.box)
                 continue
 
-            scr = scores[index, scores_over_thresh]
-            lab = labels[index, scores_over_thresh]
-            box = boxes[index, scores_over_thresh]
+            scr = scores[scores_over_thresh]
+            lab = labels[scores_over_thresh]
+            box = boxes[scores_over_thresh]
             bboxes = torch.cat((box, scr.unsqueeze(1)), dim=1)
 
             nms_classes = self.lab.type_as(lab)
@@ -154,4 +162,4 @@ class PostProcess(object):
             boxes_list.append(nms_bboxes[post_idx].cpu())
 
         return scores_list, labels_list, boxes_list
-    """
+    # """
