@@ -260,9 +260,9 @@ def train(**kwargs):
                 else trainer.model.state_dict(),
                 'best_pred': trainer.best_pred,
                 'optimizer': trainer.optimizer.state_dict(),
-            }, is_best=False)
+            }, is_best)
 
 
 if __name__ == '__main__':
     # train()
-    fire.Fire()
+    fire.Fire(train)

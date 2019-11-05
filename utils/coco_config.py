@@ -46,8 +46,13 @@ class Config:
     scales = 0.3
 
     # parameters
-    pst_thd = 0.3
-    nms_thd = 0.5
+    pre_pst_thd = 0.05
+    post_pst_thd = 0.05
+    nms_thd = 0.6
+    n_pre_nms = 6000
+
+    # loss
+    giou_loss = True
 
     # visual
     visualize = True

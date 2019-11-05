@@ -2,6 +2,36 @@ import torch
 import torch.nn as nn
 
 
+def calc_giou(box1, box2):
+    # Returns the IoU of box1 to box2. box1 is 4, box2 is nx4
+    box1 = box1.t()
+    box2 = box2.t()
+
+    # Get the coordinates of bounding boxes
+    # x, y, w, h = box1
+    b1_x1, b1_x2 = box1[0] - box1[2] / 2, box1[0] + box1[2] / 2
+    b1_y1, b1_y2 = box1[1] - box1[3] / 2, box1[1] + box1[3] / 2
+    b2_x1, b2_x2 = box2[0] - box2[2] / 2, box2[0] + box2[2] / 2
+    b2_y1, b2_y2 = box2[1] - box2[3] / 2, box2[1] + box2[3] / 2
+
+    # Intersection area
+    inter_area = (torch.min(b1_x2, b2_x2) - torch.max(b1_x1, b2_x1)).clamp(0) * \
+                 (torch.min(b1_y2, b2_y2) - torch.max(b1_y1, b2_y1)).clamp(0)
+
+    # Union Area
+    union_area = ((b1_x2 - b1_x1) * (b1_y2 - b1_y1) + 1e-16) + \
+                 (b2_x2 - b2_x1) * (b2_y2 - b2_y1) - inter_area
+
+    iou = inter_area / union_area  # iou
+    c_x1, c_x2 = torch.min(b1_x1, b2_x1), torch.max(b1_x2, b2_x2)
+    c_y1, c_y2 = torch.min(b1_y1, b2_y1), torch.max(b1_y2, b2_y2)
+    c_area = (c_x2 - c_x1) * (c_y2 - c_y1)  # convex area
+
+    giou = iou - (c_area - union_area) / c_area# GIoU
+
+    return giou
+
+
 def calc_iou(a, b):
     area = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
 
@@ -23,7 +53,9 @@ def calc_iou(a, b):
 
 
 class FocalLoss(nn.Module):
-    # def __init__(self):
+    def __init__(self, giou_loss=False):
+        self.giou_loss = giou_loss
+        super(FocalLoss, self).__init__()
 
     def forward(self, classifications, regressions, anchors, annotations):
         device = regressions.device
@@ -94,7 +126,8 @@ class FocalLoss(nn.Module):
 
             if positive_indices.sum() > 0:
                 assigned_annotations = assigned_annotations[positive_indices, :]
-
+                # negative_indices = 1 - positive_indices
+                predicts = regression[positive_indices, :]
                 anchor_widths_pi = anchor_widths[positive_indices]
                 anchor_heights_pi = anchor_heights[positive_indices]
                 anchor_ctr_x_pi = anchor_ctr_x[positive_indices]
@@ -109,27 +142,37 @@ class FocalLoss(nn.Module):
                 gt_widths = torch.clamp(gt_widths, min=1)
                 gt_heights = torch.clamp(gt_heights, min=1)
 
-                targets_dx = (gt_ctr_x - anchor_ctr_x_pi) / anchor_widths_pi
-                targets_dy = (gt_ctr_y - anchor_ctr_y_pi) / anchor_heights_pi
-                targets_dw = torch.log(gt_widths / anchor_widths_pi)
-                targets_dh = torch.log(gt_heights / anchor_heights_pi)
+                if self.giou_loss:
+                    predicts = predicts * torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(device)
+                    pred_ctr_x = predicts[:, 0] * anchor_widths_pi + anchor_ctr_x_pi
+                    pred_ctr_y = predicts[:, 1] * anchor_heights_pi + anchor_ctr_y_pi
+                    pred_widths = torch.exp(predicts[:, 2]) * anchor_widths_pi
+                    pred_heights = torch.exp(predicts[:, 3]) * anchor_heights_pi
+                    pred_bbox = torch.stack((pred_ctr_x, pred_ctr_y, pred_widths, pred_heights)).t()
+                    gt_bbox = torch.stack((gt_ctr_x, gt_ctr_y, gt_widths, gt_heights)).t()
+                    giou = calc_giou(pred_bbox, gt_bbox)
+                    regression_loss = 1.0 - giou
+                else:
+                    targets_dx = (gt_ctr_x - anchor_ctr_x_pi) / anchor_widths_pi
+                    targets_dy = (gt_ctr_y - anchor_ctr_y_pi) / anchor_heights_pi
+                    targets_dw = torch.log(gt_widths / anchor_widths_pi)
+                    targets_dh = torch.log(gt_heights / anchor_heights_pi)
 
-                targets = torch.stack((targets_dx, targets_dy, targets_dw, targets_dh))
-                targets = targets.t()
+                    targets = torch.stack((targets_dx, targets_dy, targets_dw, targets_dh))
+                    targets = targets.t()
 
-                targets = targets/torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(device)
+                    targets = targets / torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(device)
 
-                # negative_indices = 1 - positive_indices
+                    regression_diff = torch.abs(targets - predicts)
+                    # L2 if diff <= 1/9 else L1
+                    regression_loss = torch.where(
+                        torch.le(regression_diff, 1.0 / 9.0),
+                        0.5 * 9.0 * torch.pow(regression_diff, 2),
+                        regression_diff - 0.5 / 9.0
+                    )
 
-                regression_diff = torch.abs(targets - regression[positive_indices, :])
-
-                # L2 if diff <= 1/9 else L1
-                regression_loss = torch.where(
-                    torch.le(regression_diff, 1.0 / 9.0),
-                    0.5 * 9.0 * torch.pow(regression_diff, 2),
-                    regression_diff - 0.5 / 9.0
-                )
                 regression_losses.append(regression_loss.mean())
+
             else:
                 regression_losses.append(torch.tensor(0).float().to(device))
 

@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 from dataloaders.transform import IrRegularResizer, Normalizer
 from models.retinanet import RetinaNet
-from utils.config import opt
+from utils.visdrone_config import opt
 
 import torch
 

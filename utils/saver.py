@@ -2,7 +2,6 @@ import os
 import os.path as osp
 import shutil
 import torch
-from collections import OrderedDict
 import glob
 
 
@@ -13,7 +12,6 @@ class Saver(object):
         self.directory = os.path.join('run', opt.dataset)
         self.runs = sorted(glob.glob(osp.join(self.directory, 'experiment_*')))
         run_id = int(self.runs[-1].split('_')[-1]) + 1 if self.runs else 0
-
         self.experiment_dir = os.path.join(self.directory, 'experiment_{}'.format(str(run_id)))
         if not osp.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
