@@ -30,7 +30,7 @@ class Config:
     resume = False
     min_size = 608
     max_size = 1024
-    pre = '/home/twsf/work/RetinaNet/run/visdrone/experiment_0/checkpoint.path.tar'
+    pre = '/home/twsf/work/RetinaNet/run/visdrone/model_best.pth.tar'
 
     # train
     batch_size = 3
@@ -52,7 +52,7 @@ class Config:
     n_pre_nms = 20000
 
     # loss
-    giou_loss = True
+    giou_loss = False
 
     # visual
     visualize = True

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 
 
 def calc_giou(box1, box2):
@@ -164,11 +165,23 @@ class FocalLoss(nn.Module):
                     targets = targets / torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(device)
 
                     regression_diff = torch.abs(targets - predicts)
-                    # L2 if diff <= 1/9 else L1
+
+                    # # L2 if diff <= 1/9 else L1
+                    # regression_loss = torch.where(
+                    #     torch.le(regression_diff, 1.0 / 9.0),
+                    #     0.5 * 9.0 * torch.pow(regression_diff, 2),
+                    #     regression_diff - 0.5 / 9.0
+                    # )
+
+                    # balance L1 Loss
+                    a = 0.5
+                    b = math.e ** 3 - 1
+                    r = 1.5
                     regression_loss = torch.where(
-                        torch.le(regression_diff, 1.0 / 9.0),
-                        0.5 * 9.0 * torch.pow(regression_diff, 2),
-                        regression_diff - 0.5 / 9.0
+                        torch.le(regression_diff, 1),
+                        a / b * (b * regression_diff + 1) *
+                        torch.log(b * regression_diff + 1) - a * regression_diff,
+                        r * regression_diff - a / b
                     )
 
                 regression_losses.append(regression_loss.mean())
