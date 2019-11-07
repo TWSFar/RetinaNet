@@ -32,6 +32,10 @@ class Config:
     max_size = 1024
     pre = '/home/twsf/work/RetinaNet/run/visdrone/model_best.pth.tar'
 
+    # model
+    backbone = 'resnet50'
+    hrnet_cfg = '/home/twsf/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
+
     # train
     batch_size = 3
     start_epoch = 0
@@ -45,11 +49,13 @@ class Config:
     steps = [0.8, 0.9]
     scales = 0.3
 
+    # eval
     # parameters
-    pre_pst_thd = 0.05
-    post_pst_thd = 0.05
-    nms_thd = 0.6
+    pst_thd = 0.05
+    nms_thd = 0.5
     n_pre_nms = 20000
+    # nms: greedy_nms, soft_nms
+    nms_type = 'soft_nms'
 
     # loss
     giou_loss = False

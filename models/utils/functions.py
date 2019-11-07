@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-from models.utils.nms.nms_gpu import nms
+from models.utils.nms.nms_gpu import nms, soft_nms
 
 
 class BBoxTransform(nn.Module):
@@ -67,10 +67,10 @@ class ClipBoxes(nn.Module):
 
 class PostProcess(object):
     def __init__(self, opt):
-        self.pre_pst_thd = opt.pre_pst_thd
-        self.post_pst_thd = opt.post_pst_thd
+        self.pst_thd = opt.pst_thd
         self.n_pre_nms = opt.n_pre_nms
         self.nms_thd = opt.nms_thd
+        self.nms_type = opt.nms_type
         self.scr = torch.zeros(0)
         self.lab = torch.zeros(0)
         self.box = torch.zeros(0, 4)
@@ -81,7 +81,7 @@ class PostProcess(object):
         labels_list = []
         boxes_list = []
         for index in range(len(scores)):
-            scores_over_thresh = (scores[index] > self.pre_pst_thd)
+            scores_over_thresh = (scores[index] > self.pst_thd)
             if scores_over_thresh.sum() == 0:
                 scores_list.append(self.scr)
                 labels_list.append(self.lab)
@@ -97,17 +97,16 @@ class PostProcess(object):
             scr = scr[nms_idx]
             lab = lab[nms_idx]
             box = box[nms_idx]
-            post_idx = (scr > self.post_pst_thd)
 
-            if post_idx.sum() == 0:
+            if nms_idx.sum() == 0:
                 scores_list.append(self.scr)
                 labels_list.append(self.lab)
                 boxes_list.append(self.box)
                 continue
 
-            scores_list.append(scr[post_idx].cpu())
-            labels_list.append(lab[post_idx].cpu())
-            boxes_list.append(box[post_idx].cpu())
+            scores_list.append(scr.cpu())
+            labels_list.append(lab.cpu())
+            boxes_list.append(box.cpu())
 
         return scores_list, labels_list, boxes_list
     """
@@ -124,7 +123,7 @@ class PostProcess(object):
             scores = scores_bt[index, desort_idx[index]]
             labels = labels_bt[index, desort_idx[index]]
             boxes = boxes_bt[index, desort_idx[index]]
-            scores_over_thresh = (scores > self.pre_pst_thd)
+            scores_over_thresh = (scores > self.pst_thd)
             if scores_over_thresh.sum() == 0:
                 scores_list.append(self.scr)
                 labels_list.append(self.lab)
@@ -144,22 +143,23 @@ class PostProcess(object):
                 b = bboxes[idx]
                 c = lab[idx]
                 s = scr[idx]
-                nms_idx = nms(b.cpu().numpy(), self.nms_thd)
+                if self.nms_type == 'soft_nms':
+                    nms_idx = soft_nms(b.cpu().numpy(), method=0, threshold=self.pst_thd, Nt=self.nms_thd)
+                else:
+                    nms_idx = nms(b.cpu().numpy(), self.nms_thd)
                 nms_scores = torch.cat((nms_scores, s[nms_idx]), dim=0)
                 nms_classes = torch.cat((nms_classes, c[nms_idx]), dim=0)
                 nms_bboxes = torch.cat((nms_bboxes, b[nms_idx, :4]), dim=0)
 
-            post_idx = (nms_scores > self.post_pst_thd)
-
-            if post_idx.sum() == 0:
+            if len(nms_bboxes) == 0:
                 scores_list.append(self.scr)
                 labels_list.append(self.lab)
                 boxes_list.append(self.box)
                 continue
 
-            scores_list.append(nms_scores[post_idx].cpu())
-            labels_list.append(nms_classes[post_idx].cpu())
-            boxes_list.append(nms_bboxes[post_idx].cpu())
+            scores_list.append(nms_scores.cpu())
+            labels_list.append(nms_classes.cpu())
+            boxes_list.append(nms_bboxes.cpu())
 
         return scores_list, labels_list, boxes_list
     # """

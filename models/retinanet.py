@@ -2,13 +2,12 @@ import math
 import torch
 import torch.nn as nn
 
+from models import backbones
 from models.classification import ClassificationModel
 from models.regression import RegressionModel
-from models.backbones.resnet import resnet50, resnet101
 from models.utils import losses
 from models.utils.anchors import Anchors
 from models.utils.functions import BBoxTransform, ClipBoxes
-from models.utils.nms.nms_gpu import nms
 
 
 class RetinaNet(nn.Module):
@@ -17,12 +16,11 @@ class RetinaNet(nn.Module):
         self.opt = opt
         super(RetinaNet, self).__init__()
         self.nms_thd = self.opt.nms_thd
-        # self.backbone = resnet50()
-        self.backbone = resnet101()
+        self.backbone = backbones.make_backbone(opt)
         self.regressionModel = RegressionModel(num_features_in=256)
         self.classificationModel = ClassificationModel(num_features_in=256,
                                                        num_classes=num_classes)
-        self.anchors = Anchors()
+        self.anchors = Anchors([2,3])
         self.regressBoxes = BBoxTransform()
         self.clipBoxes = ClipBoxes()
         self.focalLoss = losses.FocalLoss(opt.giou_loss)
@@ -64,7 +62,7 @@ class RetinaNet(nn.Module):
 
 
 if __name__ == "__main__":
-    from utils.config import opt
+    from utils.visdrone_config import opt
     model = RetinaNet(opt)
     model = model.cuda()
     model.eval()
