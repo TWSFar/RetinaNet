@@ -16,11 +16,11 @@ class RetinaNet(nn.Module):
         self.opt = opt
         super(RetinaNet, self).__init__()
         self.nms_thd = self.opt.nms_thd
-        self.backbone = backbones.make_backbone(opt)
+        self.backbone = backbones.build_backbone(opt)
         self.regressionModel = RegressionModel(num_features_in=256)
         self.classificationModel = ClassificationModel(num_features_in=256,
                                                        num_classes=num_classes)
-        self.anchors = Anchors([2,3])
+        self.anchors = Anchors()
         self.regressBoxes = BBoxTransform()
         self.clipBoxes = ClipBoxes()
         self.focalLoss = losses.FocalLoss(opt.giou_loss)

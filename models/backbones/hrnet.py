@@ -23,11 +23,11 @@ model_path = {
     'hrnet_w18_c': '',
     'hrnet_w18_small_v1': '',
     'hrnet_w18_small_v2': "/home/twsf/.cache/torch/checkpoints/hrnet_w18_small_model_v2.pth",
-    'hrnet_w32': '',
     'hrnet_w30': '',
-    'hrnet_w40': '',
+    'hrnet_w32': "/home/twsf/.cache/torch/checkpoints/hrnetv2_w32_imagenet_pretrained.pth",
+    'hrnet_w40': "",
     'hrnet_w44': '',
-    'hrnet_w48': '',
+    'hrnet_w48': "/home/twsf/.cache/torch/checkpoints/hrnetv2_w48_imagenet_pretrained.pth",
     'hrnet_w64': ''
 }
 
@@ -39,47 +39,55 @@ def conv3x3(in_planes, out_planes, stride=1):
 
 
 class Head(nn.Module):
-    def __init__(self, C1_size, C2_size, C3_size, C4_size, feature_size=256):
+    def __init__(self, C2_size, C3_size, C4_size, C5_size, feature_size=256):
         super(Head, self).__init__()
-
-        # P1
-        self.P1_1 = nn.Conv2d(C1_size, feature_size, kernel_size=1, stride=1, padding=0)
-        self.P1_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
 
         # P2
         self.P2_1 = nn.Conv2d(C2_size, feature_size, kernel_size=1, stride=1, padding=0)
-        self.P2_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
+        self.P2_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=2, padding=1)
 
         # P3
         self.P3_1 = nn.Conv2d(C3_size, feature_size, kernel_size=1, stride=1, padding=0)
-        self.P3_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
+        self.P3_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=2, padding=1)
 
         # P4
         self.P4_1 = nn.Conv2d(C4_size, feature_size, kernel_size=1, stride=1, padding=0)
-        self.P4_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
+        self.P4_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=2, padding=1)
 
-        # "P5 is obtained via a 3x3 stride-2 conv on C4"
-        self.P5 = nn.Conv2d(C4_size, feature_size, kernel_size=3, stride=2, padding=1)
+        # P5
+        self.P5_1 = nn.Conv2d(C5_size, feature_size, kernel_size=1, stride=1, padding=0)
+
+        # "P6 is obtained via a 3x3 stride-2 conv on C5"
+        self.P6 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=2, padding=1)
+
+        # "P6 is computed by applying ReLU followed by a 3x3 stride-2 conv on P6"
+        self.P7_1 = nn.ReLU()
+        self.P7_2 = nn.Conv2d(feature_size, feature_size, kernel_size=3, stride=2, padding=1)
 
     def forward(self, inputs):
 
-        C1, C2, C3, C4 = inputs
-
-        P1_x = self.P1_1(C1)
-        P1_x = self.P1_2(P1_x)
+        C2, C3, C4, C5 = inputs
 
         P2_x = self.P2_1(C2)
-        P2_x = self.P2_2(P2_x)
+        P2_downsample = self.P2_2(P2_x)
 
         P3_x = self.P3_1(C3)
-        P3_x = self.P3_2(P3_x)
+        P3_x = P2_downsample + P3_x
+        P3_downsample = self.P3_2(P3_x)
 
         P4_x = self.P4_1(C4)
-        P4_x = self.P4_2(P4_x)
+        P4_x = P4_x + P3_downsample
+        P4_downsample = self.P4_2(P4_x)
 
-        P5_x = self.P5(C4)
+        P5_x = self.P5_1(C5)
+        P5_x = P5_x + P4_downsample
 
-        return [P1_x, P2_x, P3_x, P4_x, P5_x]
+        P6_x = self.P6(P5_x)
+
+        P7_x = self.P7_1(P6_x)
+        P7_x = self.P7_2(P7_x)
+
+        return [P3_x, P4_x, P5_x, P6_x, P7_x]
 
 
 class BasicBlock(nn.Module):
@@ -486,6 +494,7 @@ class HRNet(nn.Module):
         if os.path.isfile(pretrained):
             pretrained_dict = torch.load(pretrained)
             logger.info('=> loading pretrained model {}'.format(pretrained))
+            print('=> loading pretrained model {}'.format(pretrained))
             model_dict = self.state_dict()
             pretrained_dict = {k: v for k, v in pretrained_dict.items()
                                if k in model_dict.keys()}

@@ -52,7 +52,10 @@ class Trainer(object):
         self.post_pro = PostProcess(opt)
 
         # Define Optimizer
-        self.optimizer = optim.Adam(self.model.parameters(), lr=opt.lr)
+        if opt.adam:
+            self.optimizer = optim.Adam(self.model.parameters(), lr=opt.lr)
+        else:
+            self.optimizer = optim.SGD(self.model.parameters(), lr=opt.lr, momentum=opt.momentum, weight_decay=opt.decay)
 
         # Define lr scherduler
         self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
@@ -265,4 +268,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
     # train()
-    fire.Fire(train)
+    fire.Fire()

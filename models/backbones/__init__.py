@@ -3,7 +3,7 @@ from models.backbones import hrnet, resnet
 from yacs.config import CfgNode as CN
 
 
-def make_backbone(opt):
+def build_backbone(opt):
     if opt.backbone == 'resnet101':
         return resnet.resnet101()
 

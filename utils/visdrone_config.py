@@ -30,19 +30,20 @@ class Config:
     resume = False
     min_size = 608
     max_size = 1024
-    pre = '/home/twsf/work/RetinaNet/run/visdrone/model_best.pth.tar'
+    pre = '/home/twsf/work/RetinaNet/run/visdrone/experiment_0/checkpoint.path.tar'
 
     # model
-    backbone = 'resnet50'
+    backbone = 'hrnet_w48'
     hrnet_cfg = '/home/twsf/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
-    batch_size = 3
+    batch_size = 2
     start_epoch = 0
     epochs = 70
     workers = 1
 
     # param for optimizer
+    adam = True
     lr = 0.0002
     momentum = 0.9
     decay = 5*1e-4
@@ -55,7 +56,7 @@ class Config:
     nms_thd = 0.5
     n_pre_nms = 20000
     # nms: greedy_nms, soft_nms
-    nms_type = 'soft_nms'
+    nms_type = 'greedy_nms'
 
     # loss
     giou_loss = False
