@@ -1,5 +1,5 @@
 import os.path as osp
-from models.backbones import hrnet, resnet
+from models.backbones import hrnet, resnet, resnet_sefpn
 from yacs.config import CfgNode as CN
 
 
@@ -9,6 +9,9 @@ def build_backbone(opt):
 
     elif opt.backbone == 'resnet50':
         return resnet.resnet50()
+
+    elif opt.backbone == 'resnet50_sefpn':
+        return resnet_sefpn.resnet50()
 
     elif 'hrnet' in opt.backbone:
         cfg = CN()

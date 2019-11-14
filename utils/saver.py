@@ -37,9 +37,9 @@ class Saver(object):
                         continue
                 max_miou = max(previous_miou)
                 if best_pred > max_miou:
-                    shutil.copyfile(filename, osp.join(self.directory, 'model_best.pth.tar'))
+                    shutil.copyfile(filename, osp.join(self.experiment_dir, 'model_best.pth.tar'))
             else:
-                shutil.copyfile(filename, os.path.join(self.directory, 'model_best.pth.tar'))
+                shutil.copyfile(filename, os.path.join(self.experiment_dir, 'model_best.pth.tar'))
 
     def save_experiment_config(self):
         logfile = osp.join(self.experiment_dir, 'parameters.txt')

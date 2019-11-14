@@ -33,7 +33,7 @@ class Config:
     pre = '/home/twsf/work/RetinaNet/run/visdrone/experiment_0/checkpoint.path.tar'
 
     # model
-    backbone = 'hrnet_w48'
+    backbone = 'resnet50_sefpn'
     hrnet_cfg = '/home/twsf/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
