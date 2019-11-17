@@ -231,7 +231,9 @@ def resnet50(pretrained=True, **kwargs):
     model = ResNet(Bottleneck, [3, 4, 6, 3], **kwargs)
     if pretrained:
         try:
-            weight_path = "/home/twsf/.cache/torch/checkpoints/resnet50-19c8e357.pth"
+            import os
+            user_dir = os.path.expanduser('~')
+            weight_path = os.path.join(user_dir, ".cache/torch/checkpoints/resnet50-19c8e357.pth")
             chkpt = torch.load(weight_path)
             model_dict = model.state_dict()
             new_dict = {k: v for k, v in chkpt.items() if k in model_dict.keys() and 'fc' not in k}

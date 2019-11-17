@@ -1,9 +1,10 @@
+import os
 import time
 import torch
 import numpy as np
-import os.path as osp
 from mypath import Path
 from pprint import pprint
+user_dir = os.path.expanduser('~')
 
 
 def select_device(force_cpu=False):
@@ -30,11 +31,11 @@ class Config:
     resume = False
     min_size = 608
     max_size = 1024
-    pre = '/home/twsf/work/RetinaNet/run/visdrone/experiment_0/checkpoint.path.tar'
+    pre = user_dir + '/work/RetinaNet/run/visdrone/experiment_4/checkpoint.path.tar'
 
     # model
-    backbone = 'resnet50_sefpn'
-    hrnet_cfg = '/home/twsf/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
+    backbone = 'resnet50'
+    hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
     batch_size = 2

@@ -19,15 +19,16 @@ import torch._utils
 BN_MOMENTUM = 0.1
 logger = logging.getLogger(__name__)
 
+user_dir = os.path.expanduser('~')
 model_path = {
     'hrnet_w18_c': '',
     'hrnet_w18_small_v1': '',
-    'hrnet_w18_small_v2': "/home/twsf/.cache/torch/checkpoints/hrnet_w18_small_model_v2.pth",
+    'hrnet_w18_small_v2': "/.cache/torch/checkpoints/hrnet_w18_small_model_v2.pth",
     'hrnet_w30': '',
-    'hrnet_w32': "/home/twsf/.cache/torch/checkpoints/hrnetv2_w32_imagenet_pretrained.pth",
+    'hrnet_w32': "/.cache/torch/checkpoints/hrnetv2_w32_imagenet_pretrained.pth",
     'hrnet_w40': "",
     'hrnet_w44': '',
-    'hrnet_w48': "/home/twsf/.cache/torch/checkpoints/hrnetv2_w48_imagenet_pretrained.pth",
+    'hrnet_w48': "/.cache/torch/checkpoints/hrnetv2_w48_imagenet_pretrained.pth",
     'hrnet_w64': ''
 }
 
@@ -507,7 +508,8 @@ class HRNet(nn.Module):
 
 def hrnet(cfg):
     model = HRNet(cfg)
-    model.init_weights(model_path[cfg['NAME']])
+    pretrained = os.path.join(user_dir, model_path[cfg['NAME']])
+    model.init_weights(pretrained)
     return model
 
 
