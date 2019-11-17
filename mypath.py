@@ -1,10 +1,9 @@
 import os
+user_dir = os.path.expanduser('~')
 
 
 class Path(object):
     @staticmethod
-    user_dir = os.path.expanduser('~')
-
     def db_root_dir(dataset):
         if dataset == 'voc':
             return user_dir + '/work/DSSD/data/VOC2012'
