@@ -34,7 +34,7 @@ class Config:
     pre = user_dir + '/work/RetinaNet/run/visdrone/experiment_4/checkpoint.path.tar'
 
     # model
-    backbone = 'resnet50'
+    backbone = 'resnet50_gatefpn'
     hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
