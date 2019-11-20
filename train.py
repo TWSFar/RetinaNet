@@ -1,16 +1,18 @@
 import os
 import fire
 import json
+import time
 import collections
 import numpy as np
 
 # from models_demo import model_demo
+from configs.visdrone_config import opt
 from models.retinanet import RetinaNet
 from dataloaders import make_data_loader
 from models.utils.functions import PostProcess
-from utils.visdrone_config import opt
 from utils.visualization import TensorboardSummary
 from utils.saver import Saver
+from utils.timer import Timer
 
 import torch
 import torch.optim as optim
@@ -25,7 +27,6 @@ class Trainer(object):
     def __init__(self):
         # Define Saver
         self.saver = Saver(opt)
-        self.saver.save_experiment_config()
 
         # visualize
         if opt.visualize:
@@ -83,6 +84,8 @@ class Trainer(object):
                                                device_ids=opt.gpu_id)
 
         self.loss_hist = collections.deque(maxlen=500)
+        self.timer = Timer(opt.epochs, self.num_bt_tr, self.num_bt_val)
+        self.step_time = collections.deque(maxlen=opt.print_freq)
 
     def training(self, epoch):
         self.model.train()
@@ -93,6 +96,7 @@ class Trainer(object):
         epoch_loss = []
         for iter_num, data in enumerate(self.train_loader):
             try:
+                temp_time = time.time()
                 self.optimizer.zero_grad()
                 imgs = data['img'].to(opt.device)
                 target = data['annot'].to(opt.device)
@@ -112,16 +116,26 @@ class Trainer(object):
                 epoch_loss.append(float(loss))
 
                 # visualize
-                global_step = iter_num + self.num_bt_tr * epoch
+                global_step = iter_num + self.num_bt_tr * epoch + 1
                 self.writer.add_scalar('train/cls_loss_epoch', cls_loss.cpu().item(), global_step)
                 self.writer.add_scalar('train/loc_loss_epoch', loc_loss.cpu().item(), global_step)
 
+                batch_time = time.time() - temp_time
+                eta = self.timer.eta(global_step, batch_time)
+                self.step_time.append(batch_time)
                 if global_step % opt.print_freq == 0:
-                    printline = 'Epoch: {}/{} | Iteration: {}/{} | Classification loss: {:1.5f} | Regression loss: {:1.5f} | Running loss: {:1.5f}'
-                    print(printline.format(
-                        epoch, opt.epochs, iter_num, self.num_bt_tr,
-                        float(cls_loss), float(loc_loss),
-                        np.mean(self.loss_hist)))
+                    printline = ("Epoch: [{}][{}/{}]  "
+                                 "lr: {}, eta: {}, time: {:1.3f}, "
+                                 "loss_cls: {:1.5f}, "
+                                 "loss_bbox: {:1.5f}, "
+                                 "Running loss: {:1.5f}").format(
+                                    epoch, iter_num + 1, self.num_bt_tr,
+                                    self.optimizer.param_groups[0]['lr'],
+                                    eta, np.sum(self.step_time),
+                                    float(cls_loss), float(loc_loss),
+                                    np.mean(self.loss_hist))
+                    print(printline)
+                    self.saver.save_experiment_log(printline)
 
                 del cls_loss
                 del loc_loss
@@ -252,7 +266,9 @@ def train(**kwargs):
         trainer.training(epoch)
 
         # val
+        val_time = time.time()
         ap50 = trainer.validate(epoch)
+        trainer.timer.set_val_eta(epoch, time.time() - val_time)
 
         is_best = ap50 > trainer.best_pred
         trainer.best_pred = max(ap50, trainer.best_pred)
