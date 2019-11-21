@@ -91,6 +91,9 @@ class VisdroneDataset(Dataset):
             sample = self.test_tsf(sample)
         sample['index'] = idx  # it is very import for val
 
+        # show image and labels
+        # show_image(sample['img'].numpy(), sample['annot'].numpy())
+
         return sample
 
     def load_image(self, image_index):

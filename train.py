@@ -118,8 +118,8 @@ class Trainer(object):
 
                 # visualize
                 global_step = iter_num + self.num_bt_tr * epoch + 1
-                self.writer.add_scalar('train/cls_loss_epoch', cls_loss.cpu().item(), global_step)
-                self.writer.add_scalar('train/loc_loss_epoch', loc_loss.cpu().item(), global_step)
+                self.writer.add_scalar('train/cls_loss', cls_loss.cpu().item(), global_step)
+                self.writer.add_scalar('train/loc_loss', loc_loss.cpu().item(), global_step)
 
                 batch_time = time.time() - temp_time
                 eta = self.timer.eta(global_step, batch_time)
