@@ -1,1 +1,1 @@
-python train.py train
+python train.py

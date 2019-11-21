@@ -6,7 +6,8 @@ import collections
 import numpy as np
 
 # from models_demo import model_demo
-from configs.visdrone_config import opt
+# from configs.visdrone import opt
+from configs.visdrone_chip import opt
 from models.retinanet import RetinaNet
 from dataloaders import make_data_loader
 from models.utils.functions import PostProcess
@@ -284,4 +285,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
     # train()
-    fire.Fire()
+    fire.Fire(train)

@@ -11,6 +11,8 @@ class Path(object):
             return user_dir + '/data/COCO'
         elif dataset == 'visdrone':
             return user_dir + '/data/Visdrone'
+        elif dataset == 'visdrone_chip':
+            return user_dir + '/data/Visdrone/detect_voc'
         else:
             print('Dataset {} not available.'.format(dataset))
             raise NotImplementedError

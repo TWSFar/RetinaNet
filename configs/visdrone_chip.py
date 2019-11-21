@@ -9,16 +9,17 @@ user_dir = os.path.expanduser('~')
 
 class Config:
     # data
-    dataset = "visdrone"
+    dataset = "visdrone_chip"
     root_dir = Path.db_root_dir(dataset)
     resume = False
     min_size = 608
     max_size = 1024
-    pre = user_dir + '/work/RetinaNet/run/visdrone/experiment_4/checkpoint.path.tar'
+    pre = None
 
     # model
-    backbone = 'resnet50_gatefpn'
-    hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
+    backbone = 'resnet50'
+    if 'hrnet' in backbone:
+        hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
     batch_size = 2
@@ -47,8 +48,8 @@ class Config:
 
     # visual
     visualize = True
-    print_freq = 10
-    plot_every = 50  # every n batch plot
+    print_freq = 50
+    plot_every = 200  # every n batch plot
     saver_freq = 1
 
     seed = time.time()

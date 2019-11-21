@@ -1,5 +1,6 @@
 fire
+json
+cython
 pycocotools
-torch==1.2.1
-torchvision=0.4.0
-tensorboard
+tensorboardX
+opencv-python
