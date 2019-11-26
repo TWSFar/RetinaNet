@@ -1,5 +1,4 @@
 fire
-json
 cython
 pycocotools
 tensorboardX

@@ -12,7 +12,7 @@ class Config:
     dataset = "visdrone_chip"
     root_dir = Path.db_root_dir(dataset)
     resume = False
-    min_size = 608
+    min_size = 1024
     max_size = 1024
     pre = None
 
@@ -22,9 +22,9 @@ class Config:
         hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
-    batch_size = 2
+    batch_size = 6
     start_epoch = 0
-    epochs = 70
+    epochs = 40
     workers = 1
 
     # param for optimizer
