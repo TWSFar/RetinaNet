@@ -33,7 +33,7 @@ class Config:
     momentum = 0.9
     decay = 5*1e-4
     steps = [0.8, 0.9]
-    scales = 0.3
+    gamma = 0.3
 
     # eval
     # parameters
@@ -52,7 +52,7 @@ class Config:
     plot_every = 200  # every n batch plot
     saver_freq = 1
 
-    seed = time.time()
+    seed = int(time.time())
 
     def _parse(self, kwargs):
         state_dict = self._state_dict()

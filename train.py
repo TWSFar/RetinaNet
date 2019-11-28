@@ -166,7 +166,7 @@ class Trainer(object):
 
                 # visualize
                 global_step = ii + self.num_bt_val * epoch
-                if ii % opt.plot_every == 0:
+                if global_step % opt.plot_every == 0:
                     output = []
                     for k in range(len(boxes_bt)):
                         output.append(torch.cat((

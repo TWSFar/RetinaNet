@@ -14,7 +14,7 @@ class Config:
     resume = False
     min_size = 608
     max_size = 1024
-    pre = user_dir + '/work/RetinaNet/run/visdrone/experiment_4/checkpoint.path.tar'
+    pre = '/home/visito1/work/RetinaNet/run/visdrone/experiment_4/checkpoint.path.tar'
 
     # model
     backbone = 'resnet50_gatefpn'
@@ -51,7 +51,7 @@ class Config:
     plot_every = 50  # every n batch plot
     saver_freq = 1
 
-    seed = time.time()
+    seed = int(time.time())
 
     def _parse(self, kwargs):
         state_dict = self._state_dict()
