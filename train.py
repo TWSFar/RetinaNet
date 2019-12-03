@@ -28,7 +28,6 @@ class Trainer(object):
     def __init__(self):
         # Define Saver
         self.saver = Saver(opt)
-
         # visualize
         if opt.visualize:
             self.summary = TensorboardSummary(self.saver.experiment_dir)
@@ -65,12 +64,13 @@ class Trainer(object):
 
         # Resuming Checkpoint
         self.best_pred = 0.0
-        self.start_epoch = opt.start_epoch
+        self.start_epoch = 0
+ 
         if opt.resume:
             if os.path.isfile(opt.pre):
                 print("=> loading checkpoint '{}'".format(opt.pre))
                 checkpoint = torch.load(opt.pre)
-                opt.start_epoch = checkpoint['epoch']
+                self.start_epoch = checkpoint['epoch'] + 1
                 self.best_pred = checkpoint['best_pred']
                 self.model.load_state_dict(checkpoint['state_dict'])
                 print("=> loaded checkpoint '{}' (epoch {})"
@@ -262,7 +262,7 @@ def train(**kwargs):
 
     print('Num training images: {}'.format(len(trainer.train_dataset)))
 
-    for epoch in range(opt.start_epoch, opt.epochs):
+    for epoch in range(trainer.start_epoch, opt.epochs):
         # train
         trainer.training(epoch)
 
@@ -275,7 +275,7 @@ def train(**kwargs):
         trainer.best_pred = max(ap50, trainer.best_pred)
         if (epoch % opt.saver_freq == 0) or is_best:
             trainer.saver.save_checkpoint({
-                'epoch': epoch + 1,
+                'epoch': epoch,
                 'state_dict': trainer.model.module.state_dict() if len(opt.gpu_id) > 1
                 else trainer.model.state_dict(),
                 'best_pred': trainer.best_pred,

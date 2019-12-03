@@ -27,7 +27,7 @@ class Saver(object):
         if is_best:
             best_pred = state['best_pred']
             with open(osp.join(self.experiment_dir, 'best_pred.txt'), 'w') as f:
-                f.write('epoch {}: {}'.format(state['epoch'] - 1, best_pred))
+                f.write('epoch {}: {}'.format(state['epoch'], best_pred))
             shutil.copyfile(filename, os.path.join(self.experiment_dir, 'model_best.pth.tar'))
 
     def save_experiment_log(self, line):

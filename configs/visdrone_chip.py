@@ -23,7 +23,6 @@ class Config:
 
     # train
     batch_size = 6
-    start_epoch = 0
     epochs = 40
     workers = 1
 
