@@ -11,7 +11,7 @@ class Saver(object):
     def __init__(self, opt):
         self.opt = opt
         self.directory = osp.join('run', opt.dataset)
-        experiment_name = time.strftime("%Y%d%m_%H%M%S")
+        experiment_name = time.strftime("%Y%m%d_%H%M%S")
         self.experiment_dir = osp.join(self.directory, experiment_name)
         self.logfile = osp.join(self.experiment_dir, 'experiment.log')
         if not osp.exists(self.experiment_dir):
