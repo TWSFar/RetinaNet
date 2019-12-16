@@ -28,7 +28,7 @@ def calc_giou(box1, box2):
     c_y1, c_y2 = torch.min(b1_y1, b2_y1), torch.max(b1_y2, b2_y2)
     c_area = (c_x2 - c_x1) * (c_y2 - c_y1)  # convex area
 
-    giou = iou - (c_area - union_area) / c_area# GIoU
+    giou = iou - (c_area - union_area) / c_area  # GIoU
 
     return giou
 

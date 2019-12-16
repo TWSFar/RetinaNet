@@ -11,13 +11,13 @@ class Config:
     # data
     dataset = "visdrone"
     root_dir = Path.db_root_dir(dataset)
-    resume = False
+    resume = True
     min_size = 608
     max_size = 1024
-    pre = '/home/visito1/work/RetinaNet/run/visdrone/experiment_4/checkpoint.path.tar'
+    pre = '/home/twsf/work/RetinaNet/run/visdrone_chip/20192311_115838/model_best.pth.tar'
 
     # model
-    backbone = 'resnet50_gatefpn'
+    backbone = 'resnet50'
     hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train

@@ -8,8 +8,8 @@ user_dir = os.path.expanduser('~')
 
 class Config:
     # data
-    dataset = "visdrone_chip"
-    root_dir = Path.db_root_dir(dataset)
+    dataset = "visdrone"
+    root_dir = "/home/twsf/work/RetinaNet/data/VisDrone"
     resume = True
     min_size = 1024
     max_size = 1024
@@ -22,7 +22,7 @@ class Config:
 
     # train
     batch_size = 2
-    epochs = 40
+    epochs = 3
     workers = 1
 
     # param for optimizer

@@ -6,11 +6,14 @@ import collections
 import numpy as np
 
 # from models_demo import model_demo
-# from configs.visdrone import opt
-from configs.visdrone_chip import opt
+
+from configs.visdrone import opt
+# from configs.visdrone_chip import opt
+# from configs.visdrone_samples import opt
+
 from models.retinanet import RetinaNet
 from dataloaders import make_data_loader
-from models.utils.functions import PostProcess
+from models.utils.functions import PostProcess, DefaultEval
 from utils.visualization import TensorboardSummary
 from utils.saver import Saver
 from utils.timer import Timer
@@ -25,9 +28,9 @@ multiprocessing.set_start_method('spawn', True)
 
 
 class Trainer(object):
-    def __init__(self):
+    def __init__(self, mode):
         # Define Saver
-        self.saver = Saver(opt)
+        self.saver = Saver(opt, mode)
         # visualize
         if opt.visualize:
             self.summary = TensorboardSummary(self.saver.experiment_dir)
@@ -65,7 +68,7 @@ class Trainer(object):
         # Resuming Checkpoint
         self.best_pred = 0.0
         self.start_epoch = 0
- 
+
         if opt.resume:
             if os.path.isfile(opt.pre):
                 print("=> loading checkpoint '{}'".format(opt.pre))
@@ -100,9 +103,9 @@ class Trainer(object):
                 temp_time = time.time()
                 self.optimizer.zero_grad()
                 imgs = data['img'].to(opt.device)
-                target = data['annot'].to(opt.device)
+                targets = data['annot'].to(opt.device)
 
-                cls_loss, loc_loss = self.model([imgs, target])
+                cls_loss, loc_loss = self.model([imgs, targets])
 
                 cls_loss = cls_loss.mean()
                 loc_loss = loc_loss.mean()
@@ -149,6 +152,7 @@ class Trainer(object):
 
     def validate(self, epoch):
         self.model.eval()
+        def_eval = DefaultEval()
         # start collecting results
         with torch.no_grad():
             results = []
@@ -156,49 +160,53 @@ class Trainer(object):
             for ii, data in enumerate(self.val_loader):
                 scale = data['scale']
                 index = data['index']
-                img = data['img'].to(opt.device).float()
-                target = data['annot']
+                imgs = data['img'].to(opt.device).float()
+                targets = data['annot']
 
                 # run network
-                scores, labels, boxes = self.model(img)
+                scores, labels, boxes = self.model(imgs)
 
                 scores_bt, labels_bt, boxes_bt = self.post_pro(scores, labels, boxes)
+
+                outputs = []
+                for k in range(len(boxes_bt)):
+                    outputs.append(torch.cat((
+                        boxes_bt[k],
+                        labels_bt[k].unsqueeze(1).float(),
+                        scores_bt[k].unsqueeze(1)),
+                        dim=1))
+
+                # statistics
+                def_eval.statistics(outputs, targets, iou_thresh=0.5)
 
                 # visualize
                 global_step = ii + self.num_bt_val * epoch
                 if global_step % opt.plot_every == 0:
-                    output = []
-                    for k in range(len(boxes_bt)):
-                        output.append(torch.cat((
-                            boxes_bt[k],
-                            labels_bt[k].unsqueeze(1).float(),
-                            scores_bt[k].unsqueeze(1)),
-                            dim=1))
                     self.summary.visualize_image(
                         self.writer,
-                        img, target, output,
+                        imgs, targets, outputs,
                         self.val_dataset.labels,
                         global_step)
 
                 # save json
                 for jj in range(len(boxes_bt)):
-                    boxes = boxes_bt[jj]
-                    scores = scores_bt[jj]
-                    labels = labels_bt[jj]
-                    # correct boxes for image scale
-                    boxes = boxes / scale[jj]
+                    pre_bboxes = boxes_bt[jj]
+                    pre_scrs = scores_bt[jj]
+                    pre_labs = labels_bt[jj]
 
-                    if boxes.shape[0] > 0:
+                    if pre_bboxes.shape[0] > 0:
+                        # correct boxes for image scale
+                        pre_bboxes = pre_bboxes / scale[jj]
+
                         # change to (x, y, w, h) (MS COCO standard)
-                        boxes[:, 2] -= boxes[:, 0]
-                        boxes[:, 3] -= boxes[:, 1]
+                        pre_bboxes[:, 2] -= pre_bboxes[:, 0]
+                        pre_bboxes[:, 3] -= pre_bboxes[:, 1]
 
                         # compute predicted labels and scores
-                        # for box, score, label in zip(boxes[0], scores[0], labels[0]):
-                        for box_id in range(boxes.shape[0]):
-                            score = float(scores[box_id])
-                            label = int(labels[box_id])
-                            box = boxes[box_id, :]
+                        for box_id in range(pre_bboxes.shape[0]):
+                            score = float(pre_scrs[box_id])
+                            label = int(pre_labs[box_id])
+                            box = pre_bboxes[box_id, :]
 
                             # append detection for each positively labeled class
                             image_result = {
@@ -218,39 +226,69 @@ class Trainer(object):
                 # print progress
                 print('{}/{}'.format(ii, len(self.val_loader)), end='\r')
 
-            if not len(results):
-                return 0
+            # Compute statistics
 
-            # write output
-            json.dump(results, open('run/{}/{}_bbox_results.json'.format(
-                opt.dataset, self.val_dataset.set_name), 'w'), indent=4)
-
-            # load results in COCO evaluation tool
-            coco_true = self.val_dataset.coco
-            coco_pred = coco_true.loadRes('run/{}/{}_bbox_results.json'.format(
-                opt.dataset, self.val_dataset.set_name))
-
-            # run COCO evaluation
-            coco_eval = COCOeval(coco_true, coco_pred, 'bbox')
-            coco_eval.params.imgIds = image_ids
-            coco_eval.evaluate()
-            coco_eval.accumulate()
-            coco_eval.summarize()
-
-            # save result
-            stats = coco_eval.stats
-            self.saver.save_coco_eval_result(stats=stats, epoch=epoch)
+            stats = [np.concatenate(x, 0) for x in list(zip(*def_eval.stats))]
+            # number of targets per class
+            nt = np.bincount(stats[3].astype(np.int64), minlength=self.num_classes)
+            if len(stats):
+                p, r, ap, f1, ap_class = def_eval.ap_per_class(*stats)
+                mp, mr, map, mf1 = p.mean(), r.mean(), ap.mean(), f1.mean()
 
             # visualize
-            self.writer.add_scalar('val/AP50', stats[1], epoch)
+            titles = ['Precision', 'Recall', 'mAP', 'F1']
+            result = [mp, mr, map, mf1]
+            for xi, title in zip(result, titles):
+                self.writer.add_scalar('val/{}'.format(title), xi, epoch)
 
-            # according AP50
-            return stats[1]
+            # Print and Write results
+            title = ('%10s' * 7) % ('epoch: [{}]'.format(epoch), 'Class', 'Targets', 'P', 'R', 'mAP', 'F1')
+            print(title)
+            self.saver.save_eval_result(stats=title)
+            printline = '%20s' + '%10.3g' * 5
+            pf = printline % ('all', nt.sum(), mp, mr, map, mf1)  # print format
+            print(pf)
+            self.saver.save_eval_result(stats=pf)
+            if self.num_classes > 1 and len(stats):
+                for i, c in enumerate(ap_class):
+                    pf = printline % (self.val_dataset.labels[c], nt[c], p[i], r[i], ap[i], f1[i])
+                    print(pf)
+                    self.saver.save_eval_result(stats=pf)
+
+            return map
+
+            # # write output
+            # if not len(results):
+            #     return 0
+            # json.dump(results, open('run/{}/{}_bbox_results.json'.format(
+            #     opt.dataset, self.val_dataset.set_name), 'w'), indent=4)
+
+            # # load results in COCO evaluation tool
+            # coco_true = self.val_dataset.coco
+            # coco_pred = coco_true.loadRes('run/{}/{}_bbox_results.json'.format(
+            #     opt.dataset, self.val_dataset.set_name))
+
+            # # run COCO evaluation
+            # coco_eval = COCOeval(coco_true, coco_pred, 'bbox')
+            # coco_eval.params.imgIds = image_ids
+            # coco_eval.evaluate()
+            # coco_eval.accumulate()
+            # coco_eval.summarize()
+
+            # # save result
+            # stats = coco_eval.stats
+            # self.saver.save_coco_eval_result(stats=stats, epoch=epoch)
+
+            # # visualize
+            # self.writer.add_scalar('val/AP50', stats[1], epoch)
+
+            # # according AP50
+            # return stats[1]
 
 
 def eval(**kwargs):
     opt._parse(kwargs)
-    trainer = Trainer()
+    trainer = Trainer('val')
     print('Num evaluating images: {}'.format(len(trainer.val_dataset)))
 
     trainer.validate(trainer.start_epoch)
@@ -258,7 +296,7 @@ def eval(**kwargs):
 
 def train(**kwargs):
     opt._parse(kwargs)
-    trainer = Trainer()
+    trainer = Trainer('train')
 
     print('Num training images: {}'.format(len(trainer.train_dataset)))
 
@@ -285,4 +323,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
     # train()
-    fire.Fire(train)
+    fire.Fire(eval)

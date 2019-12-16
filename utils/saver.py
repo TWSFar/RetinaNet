@@ -8,11 +8,11 @@ import glob
 
 class Saver(object):
 
-    def __init__(self, opt):
+    def __init__(self, opt, mode='train'):
         self.opt = opt
         self.directory = osp.join('run', opt.dataset)
         experiment_name = time.strftime("%Y%m%d_%H%M%S")
-        self.experiment_dir = osp.join(self.directory, experiment_name)
+        self.experiment_dir = osp.join(self.directory, experiment_name + '_' + mode)
         self.logfile = osp.join(self.experiment_dir, 'experiment.log')
         if not osp.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
@@ -39,3 +39,7 @@ class Saver(object):
             f.writelines(
                 "[epoch: {}, AP@50:95: {:.3%}, AP@50: {:.3%}]\n".format(
                     epoch, stats[0], stats[1]))
+
+    def save_eval_result(self, stats):
+        with open(os.path.join(self.experiment_dir, 'result.txt'), 'a') as f:
+            f.writelines(stats + '\n')
