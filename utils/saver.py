@@ -11,8 +11,8 @@ class Saver(object):
     def __init__(self, opt, mode='train'):
         self.opt = opt
         self.directory = osp.join('run', opt.dataset)
-        experiment_name = time.strftime("%Y%m%d_%H%M%S")
-        self.experiment_dir = osp.join(self.directory, experiment_name + '_' + mode)
+        self.experiment_name = time.strftime("%Y%m%d_%H%M%S") + '_' + mode
+        self.experiment_dir = osp.join(self.directory, self.experiment_name)
         self.logfile = osp.join(self.experiment_dir, 'experiment.log')
         if not osp.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
@@ -43,3 +43,15 @@ class Saver(object):
     def save_eval_result(self, stats):
         with open(os.path.join(self.experiment_dir, 'result.txt'), 'a') as f:
             f.writelines(stats + '\n')
+
+    def backup_result(self):
+        backup_root = osp.join(osp.expanduser('~'), "Cache")
+        if not osp.exists(backup_root):
+            os.mkdir(backup_root)
+        backup_dir = osp.join(backup_root, self.experiment_name)
+        assert not osp.exists(backup_dir), "experiment has already backup"
+        os.mkdir(backup_dir)
+        for file in os.listdir(self.experiment_dir):
+            source_file = osp.join(self.experiment_dir, file)
+            if osp.isfile(source_file):
+                shutil.copy(source_file, backup_dir)

@@ -295,13 +295,14 @@ class Trainer(object):
 
 def eval(**kwargs):
     opt._parse(kwargs)
-    trainer = Trainer("eval")
-    print('Num evaluating images: {}'.format(len(trainer.val_dataset)))
+    evaler = Trainer("eval")
+    print('Num evaluating images: {}'.format(len(evaler.val_dataset)))
 
-    trainer.validate(trainer.start_epoch)
+    evaler.validate(evaler.start_epoch)
 
 
 def train(**kwargs):
+    start_time = time.time()
     opt._parse(kwargs)
     trainer = Trainer("train")
 
@@ -326,6 +327,13 @@ def train(**kwargs):
                 'best_pred': trainer.best_pred,
                 'optimizer': trainer.optimizer.state_dict(),
             }, is_best)
+
+    print("Train done!, Sum time: {}, Best result: {}".format(time.time()-start_time, train.best_pred))
+
+    # cache result
+    print("Backup result...")
+    trainer.saver.backup_result()
+    print("Done!")
 
 
 if __name__ == '__main__':
