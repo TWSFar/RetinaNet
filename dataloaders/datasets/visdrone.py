@@ -45,12 +45,12 @@ class VisdroneDataset(Dataset):
         self.train_tsf = transforms.Compose([
             tsf.Normalizer(),
             tsf.Augmenter(),
-            tsf.IrRegularResizer()
+            tsf.IrRegularResizer(opt.min_size, opt.max_size)
         ])
 
         self.test_tsf = transforms.Compose([
             tsf.Normalizer(),
-            tsf.IrRegularResizer()
+            tsf.IrRegularResizer(opt.min_size, opt.max_size)
         ])
 
     """
@@ -221,8 +221,8 @@ if __name__ == '__main__':
     opt = EasyDict()
     opt.root_dir = '/home/twsf/data/Visdrone'
     opt.batch_size = 2
-    opt.input_size = (846, 608)
-    opt.min_side = 608
+    opt.input_size = (1024, 1024)
+    opt.min_size = 1024
     opt.max_size = 1024
     dataset = VisdroneDataset(opt)
     print(dataset.labels)

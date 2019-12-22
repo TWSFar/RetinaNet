@@ -23,13 +23,13 @@ class Config:
         hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
-    batch_size = 6
-    epochs = 40
+    batch_size = 4
+    epochs = 70
     workers = 1
 
     # param for optimizer
     adam = True
-    lr = 0.0001
+    lr = 0.0002
     momentum = 0.9
     decay = 5*1e-4
     steps = [0.8, 0.9]
@@ -51,7 +51,7 @@ class Config:
     # visual
     visualize = True
     print_freq = 50
-    plot_every = 200  # every n batch plot
+    plot_every = 50  # every n batch plot
     saver_freq = 1
 
     seed = int(time.time())

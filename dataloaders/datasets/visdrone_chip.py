@@ -45,12 +45,12 @@ class VisdroneDataset(Dataset):
         self.train_tsf = transforms.Compose([
             tsf.Normalizer(),
             tsf.Augmenter(),
-            tsf.IrRegularResizer()
+            tsf.IrRegularResizer(opt.min_size, opt.max_size)
         ])
 
         self.test_tsf = transforms.Compose([
             tsf.Normalizer(),
-            tsf.IrRegularResizer()
+            tsf.IrRegularResizer(opt.min_size, opt.max_size)
         ])
 
     """

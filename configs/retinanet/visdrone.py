@@ -10,10 +10,10 @@ class Config:
     # data
     dataset = "visdrone"
     root_dir = "/home/twsf/data/Visdrone"
-    resume = True
+    resume = False
     min_size = 608
     max_size = 1024
-    pre = '/home/twsf/work/RetinaNet/run/visdrone_chip/20192311_115838/model_best.pth.tar'
+    pre = None
 
     # model
     backbone = 'resnet50'
@@ -33,6 +33,7 @@ class Config:
     scales = 0.3
 
     # eval
+    eval_type = "default"
     # parameters
     pst_thd = 0.05
     nms_thd = 0.5

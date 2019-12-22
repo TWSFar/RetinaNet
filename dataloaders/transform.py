@@ -6,7 +6,7 @@ import torch
 
 class IrRegularResizer(object):
     """Convert ndarrays in sample to Tensors."""
-    def __init__(self, min_side=608, max_side=1024):
+    def __init__(self, min_side, max_side):
         self.min_side = min_side
         self.max_side = max_side
 
