@@ -9,7 +9,7 @@ user_dir = os.path.expanduser('~')
 class Config:
     # data
     dataset = "visdrone"
-    root_dir = "/home/twsf/work/RetinaNet/data/VisDrone"
+    root_dir = user_dir + "/work/RetinaNet/data/VisDrone"
     resume = True
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024

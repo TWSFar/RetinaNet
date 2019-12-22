@@ -8,7 +8,7 @@ user_dir = os.path.expanduser('~')
 class Config:
     # data
     dataset = "visdrone_chip"
-    root_dir = "/home/twsf/data/Visdrone/detect_voc/"
+    root_dir = user_dir + "/data/Visdrone/detect_voc/"
     resume = True
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024

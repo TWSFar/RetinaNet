@@ -8,7 +8,7 @@ user_dir = os.path.expanduser('~')
 class Config:
     # data
     dataset = "coco"
-    root_dir = "/home/twsf/work/RetinaNet/data/COCO"
+    root_dir = user_dir + "/work/RetinaNet/data/COCO"
     resume = False
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
