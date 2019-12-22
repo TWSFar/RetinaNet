@@ -58,7 +58,7 @@ class VisdroneDataset(Dataset):
 
     def resizes(self, resize_type):
         if resize_type == 'irregular':
-            return tsf.IrRegularResizer()
+            return tsf.IrRegularResizer(self.min_size, self.max_size)
         elif resize_type == 'regular':
             return tsf.RegularResizer(self.input_size)
         elif resize_type == "letterbox":
