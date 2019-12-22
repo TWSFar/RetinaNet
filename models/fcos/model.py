@@ -79,8 +79,6 @@ class FCOS(nn.Module):
             mask_target = annotations[b, :, 4] != -1
             label_box = annotations[b, mask_target, :4]
             label_class = annotations[b, mask_target, 4]
-            temp1 = label_box[:, :2]
-            temp2 = _center_xy[:, None, :]
             tl = _center_xy[:, None, :] - label_box[:, :2]
             br = label_box[:, 2:] - _center_xy[:, None, :]
             tlbr = torch.cat([tl, br], dim=2)
