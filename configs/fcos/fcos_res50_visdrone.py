@@ -10,6 +10,7 @@ class Config:
     dataset = "visdrone"
     root_dir = "/home/twsf/data/Visdrone"
     resume = False
+    resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024
     pre = None
@@ -29,7 +30,7 @@ class Config:
 
     # param for optimizer
     adam = True
-    lr = 0.0002
+    lr = 0.00005
     momentum = 0.9
     decay = 5*1e-4
     steps = [0.8, 0.9]

@@ -11,6 +11,7 @@ class Config:
     dataset = "visdrone"
     root_dir = "/home/twsf/data/Visdrone"
     resume = False
+    resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 608
     max_size = 1024
     pre = None

@@ -10,6 +10,7 @@ class Config:
     dataset = "visdrone_chip"
     root_dir = "/home/twsf/data/Visdrone/detect_voc/"
     resume = True
+    resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024
     pre = '/home/twsf/work/RetinaNet/run/visdrone_chip/20191123_115838/model_best.pth.tar'

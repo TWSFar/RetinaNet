@@ -41,27 +41,30 @@ class VisdroneDataset(Dataset):
 
         self.load_classes()
 
-        self.resize_type = 'IrRegular'
+        self.min_size = opt.min_size
+        self.max_size = opt.max_size
+        self.input_size = (self.min_size, self.max_size)
+        self.resize = self.resizes(opt.resize_type)
         self.train_tsf = transforms.Compose([
             tsf.Normalizer(),
             tsf.Augmenter(),
-            tsf.IrRegularResizer(opt.min_size, opt.max_size)
+            self.resize
         ])
 
         self.test_tsf = transforms.Compose([
             tsf.Normalizer(),
-            tsf.IrRegularResizer(opt.min_size, opt.max_size)
+            self.resize
         ])
 
-    """
-    def resize_type(self):
-        if self.resize_type == 'IrRegular':
+    def resizes(self, resize_type):
+        if resize_type == 'irregular':
             return tsf.IrRegularResizer()
-        elif self.resize_type == 'IrRegularSquare':
-            return tsf.Letterbox(self.opt.input_size, train=self.train)
+        elif resize_type == 'regular':
+            return tsf.RegularResizer(self.input_size)
+        elif resize_type == "letterbox":
+            return tsf.Letterbox(self.input_size, train=self.train)
         else:
-            return tsf.RegularResizer(self.opt.input_size)
-    """
+            raise NotImplementedError
 
     def load_classes(self):
         # load class names (name -> label)
