@@ -7,11 +7,14 @@ import numpy as np
 
 # from models_demo import model_demo
 
-# from configs.visdrone import opt
-from configs.visdrone_chip import opt
+# from configs.retinanet.visdrone import opt
+# from configs.retinanet.visdrone_chip import opt
 # from configs.visdrone_samples import opt
+from configs.fcos.fcos_res50_visdrone import opt
 
-from models.retinanet import RetinaNet
+# from models.retinanet.model import RetinaNet
+from models.fcos.model import FCOS
+
 from dataloaders import make_data_loader
 from models.utils.functions import PostProcess, DefaultEval
 from utils.visualization import TensorboardSummary
@@ -48,8 +51,8 @@ class Trainer(object):
 
         # Define Network
         # initilize the network here.
-        self.model = RetinaNet(opt, self.num_classes)
-        # self.model = model_demo.resnet50(num_classes=10, pretrained=False)
+        self.model = FCOS(opt, self.num_classes)
+        # self.model = RetinaNet(opt, self.num_classes)
         self.model = self.model.to(opt.device)
 
         # contain nms for val
@@ -338,4 +341,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
     # train()
-    fire.Fire()
+    fire.Fire(train)

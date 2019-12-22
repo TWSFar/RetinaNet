@@ -3,7 +3,6 @@ import time
 import os.path as osp
 import shutil
 import torch
-import glob
 
 
 class Saver(object):

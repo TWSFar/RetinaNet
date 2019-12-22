@@ -11,7 +11,6 @@ def make_data_loader(opt, train=True):
             set_name = 'train2017'
         else:
             set_name = 'val2017'
-            batch_size = 1
 
         dataset = coco.CocoDataset(opt, set_name=set_name, train=train)
         sampler = coco.AspectRatioBasedSampler(

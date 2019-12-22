@@ -1,7 +1,5 @@
 import os
 import time
-import numpy as np
-from mypath import Path
 from pprint import pprint
 from utils.devices import select_device
 user_dir = os.path.expanduser('~')
@@ -9,20 +7,21 @@ user_dir = os.path.expanduser('~')
 
 class Config:
     # data
-    dataset = "visdrone"
-    root_dir = Path.db_root_dir(dataset)
+    dataset = "visdrone_chip"
+    root_dir = "/home/twsf/data/Visdrone/detect_voc/"
     resume = True
-    min_size = 608
+    min_size = 1024
     max_size = 1024
-    pre = '/home/twsf/work/RetinaNet/run/visdrone_chip/20192311_115838/model_best.pth.tar'
+    pre = '/home/twsf/work/RetinaNet/run/visdrone_chip/20191123_115838/model_best.pth.tar'
 
     # model
     backbone = 'resnet50'
-    hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
+    if 'hrnet' in backbone:
+        hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
     batch_size = 2
-    epochs = 70
+    epochs = 40
     workers = 1
 
     # param for optimizer
@@ -31,9 +30,10 @@ class Config:
     momentum = 0.9
     decay = 5*1e-4
     steps = [0.8, 0.9]
-    scales = 0.3
+    gamma = 0.3
 
     # eval
+    eval_type = "default"
     # parameters
     pst_thd = 0.05
     nms_thd = 0.5
@@ -46,8 +46,8 @@ class Config:
 
     # visual
     visualize = True
-    print_freq = 10
-    plot_every = 50  # every n batch plot
+    print_freq = 50
+    plot_every = 200  # every n batch plot
     saver_freq = 1
 
     seed = int(time.time())

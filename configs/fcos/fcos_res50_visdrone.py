@@ -1,6 +1,5 @@
 import os
 import time
-from mypath import Path
 from pprint import pprint
 from utils.devices import select_device
 user_dir = os.path.expanduser('~')
@@ -8,26 +7,29 @@ user_dir = os.path.expanduser('~')
 
 class Config:
     # data
-    dataset = "visdrone_chip"
-    root_dir = Path.db_root_dir(dataset)
-    resume = True
+    dataset = "visdrone"
+    root_dir = "/home/twsf/data/Visdrone"
+    resume = False
     min_size = 1024
     max_size = 1024
-    pre = '/home/twsf/work/RetinaNet/run/visdrone_chip/20191123_115838/model_best.pth.tar'
+    pre = None
 
     # model
+    strides = [8, 16, 32, 64, 128]
+    regions = [0, 64, 128, 256, 512, 99999]
+    center_offset_ratio = 1.5
     backbone = 'resnet50'
     if 'hrnet' in backbone:
         hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
-    batch_size = 2
+    batch_size = 6
     epochs = 40
     workers = 1
 
     # param for optimizer
     adam = True
-    lr = 0.0002
+    lr = 0.0001
     momentum = 0.9
     decay = 5*1e-4
     steps = [0.8, 0.9]
@@ -38,12 +40,13 @@ class Config:
     # parameters
     pst_thd = 0.05
     nms_thd = 0.5
-    n_pre_nms = 20000
+    n_pre_nms = 4000
     # nms: greedy_nms, soft_nms
     nms_type = 'greedy_nms'
 
     # loss
-    giou_loss = False
+    cls_loss = "focalloss"
+    reg_loss = "iou"
 
     # visual
     visualize = True

@@ -85,6 +85,7 @@ class CocoDataset(Dataset):
             sample = self.train_tsf(sample)
         else:
             sample = self.test_tsf(sample)
+        sample['index'] = idx  # it is very import for val
 
         return sample
 
@@ -157,6 +158,7 @@ class CocoDataset(Dataset):
         imgs = [s['img'] for s in data]
         annots = [s['annot'] for s in data]
         scales = [s['scale'] for s in data]
+        index = [s['index'] for s in data]
 
         widths = [int(s.shape[0]) for s in imgs]
         heights = [int(s.shape[1]) for s in imgs]
@@ -184,7 +186,7 @@ class CocoDataset(Dataset):
 
         padded_imgs = padded_imgs.permute(0, 3, 1, 2)
 
-        return {'img': padded_imgs, 'annot': annot_padded, 'scale': scales}
+        return {'img': padded_imgs, 'annot': annot_padded, 'scale': scales, "index": index}
 
 
 class AspectRatioBasedSampler(Sampler):

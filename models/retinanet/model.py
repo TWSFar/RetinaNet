@@ -3,15 +3,14 @@ import torch
 import torch.nn as nn
 
 from models import backbones
-from models.classification import ClassificationModel
-from models.regression import RegressionModel
-from models.utils import losses
-from models.utils.anchors import Anchors
-from models.utils.functions import BBoxTransform, ClipBoxes
+from models.retinanet.classification import ClassificationModel
+from models.retinanet.regression import RegressionModel
+from models.retinanet.utils import losses
+from models.retinanet.utils.anchors import Anchors
+from models.retinanet.utils.functions import BBoxTransform, ClipBoxes
 
 
 class RetinaNet(nn.Module):
-
     def __init__(self, opt, num_classes=80):
         self.opt = opt
         super(RetinaNet, self).__init__()
@@ -48,7 +47,7 @@ class RetinaNet(nn.Module):
         features = self.backbone(img_batch)
         regression = torch.cat([self.regressionModel(feature) for feature in features], dim=1)
         classification = torch.cat([self.classificationModel(feature) for feature in features], dim=1)
-        anchors = self.anchors(img_batch).to(regression.device)
+        anchors = self.anchors(img_batch.shape[2:]).to(regression.device)
 
         if self.training:
             return self.focalLoss(classification, regression, anchors, annotations)

@@ -29,18 +29,16 @@ class Anchors(nn.Module):
         else:
             self.scales = scales
 
-    def forward(self, image):
-
-        image_shape = image.shape[2:]
+    def forward(self, image_shape):
         image_shape = np.array(image_shape)
-        image_shapes = [(image_shape + 2 ** x - 1) // (2 ** x) for x in self.pyramid_levels]
+        feature_shapes = [(image_shape + 2 ** x - 1) // (2 ** x) for x in self.pyramid_levels]
 
         # compute anchors over all pyramid levels
         all_anchors = np.zeros((0, 4)).astype(np.float32)
 
         for idx, p in enumerate(self.pyramid_levels):
             anchors = generate_anchors(base_size=self.sizes[idx], ratios=self.ratios, scales=self.scales)
-            shifted_anchors = shift(image_shapes[idx], self.strides[idx], anchors)
+            shifted_anchors = shift(feature_shapes[idx], self.strides[idx], anchors)
             all_anchors = np.append(all_anchors, shifted_anchors, axis=0)
 
         all_anchors = np.expand_dims(all_anchors, axis=0)
@@ -95,13 +93,13 @@ def compute_shape(image_shape, pyramid_levels):
 
 
 def anchors_for_shape(
-    image_shape,
-    pyramid_levels=None,
-    ratios=None,
-    scales=None,
-    strides=None,
-    sizes=None,
-    shapes_callback=None,):
+                    image_shape,
+                    pyramid_levels=None,
+                    ratios=None,
+                    scales=None,
+                    strides=None,
+                    sizes=None,
+                    shapes_callback=None):
 
     image_shapes = compute_shape(image_shape, pyramid_levels)
 
