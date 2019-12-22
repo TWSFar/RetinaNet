@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from models.utils.nms.nms_gpu import nms, soft_nms
 
 
@@ -185,3 +186,91 @@ class DefaultEval(object):
             stats.append((correct, preds[:, 5].tolist(), preds[:, 4].tolist(), tcls))
 
         self.stats += stats
+
+    def compute_ap(self, recall, precision):
+        """ Compute the average precision, given the recall and precision curves.
+        Source: https://github.com/rbgirshick/py-faster-rcnn.
+        # Arguments
+            recall:    The recall curve (list).
+            precision: The precision curve (list).
+        # Returns
+            The average precision as computed in py-faster-rcnn.
+        """
+        # Append sentinel values to beginning and end
+        mrec = np.concatenate(([0.], recall, [1.]))
+        mpre = np.concatenate(([0.], precision, [0.]))
+
+        # Compute the precision envelope
+        for i in range(mpre.size - 1, 0, -1):
+            mpre[i - 1] = np.maximum(mpre[i - 1], mpre[i])
+
+        # Calculate area under PR curve, looking for points where x axis (recall) changes
+        i = np.where(mrec[1:] != mrec[:-1])[0]
+
+        # Sum (\Delta recall) * prec
+        ap = np.sum((mrec[i + 1] - mrec[i]) * mpre[i + 1])
+        return ap
+
+    def ap_per_class(self, tp, conf, pred_cls, target_cls):
+        """ Compute the average precision, given the recall and precision curves.
+        Source: https://github.com/rafaelpadilla/Object-Detection-Metrics.
+        # Arguments
+            tp:    True positives (list).
+            conf:  Objectness value from 0-1 (list).
+            pred_cls: Predicted object classes (list).
+            target_cls: True object classes (list).
+        # Returns
+            The average precision as computed in py-faster-rcnn.
+        """
+
+        # Sort by objectness
+        i = np.argsort(-conf)
+        tp, conf, pred_cls = tp[i], conf[i], pred_cls[i]
+
+        # Find unique classes
+        unique_classes = np.unique(target_cls)
+
+        # Create Precision-Recall curve and compute AP for each class
+        ap, p, r = [], [], []
+        for c in unique_classes:
+            i = pred_cls == c
+            n_gt = (target_cls == c).sum()  # Number of ground truth objects
+            n_p = i.sum()  # Number of predicted objects
+
+            if n_p == 0 and n_gt == 0:
+                continue
+            elif n_p == 0 or n_gt == 0:
+                ap.append(0)
+                r.append(0)
+                p.append(0)
+            else:
+                # Accumulate FPs and TPs
+                fpc = (1 - tp[i]).cumsum()
+                tpc = (tp[i]).cumsum()
+
+                # Recall
+                recall = tpc / (n_gt + 1e-16)  # recall curve
+                r.append(recall[-1])
+
+                # Precision
+                precision = tpc / (tpc + fpc)  # precision curve
+                p.append(precision[-1])
+
+                # AP from recall-precision curve
+                ap.append(self.compute_ap(recall, precision))
+
+                # Plot
+                # fig, ax = plt.subplots(1, 1, figsize=(4, 4))
+                # ax.plot(np.concatenate(([0.], recall)), np.concatenate(([0.], precision)))
+                # ax.set_xlabel('YOLOv3-SPP')
+                # ax.set_xlabel('Recall')
+                # ax.set_ylabel('Precision')
+                # ax.set_xlim(0, 1)
+                # fig.tight_layout()
+                # fig.savefig('PR_curve.png', dpi=300)
+
+        # Compute F1 score (harmonic mean of precision and recall)
+        p, r, ap = np.array(p), np.array(r), np.array(ap)
+        f1 = 2 * p * r / (p + r + 1e-16)
+
+        return p, r, ap, f1, unique_classes.astype('int32')

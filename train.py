@@ -10,6 +10,7 @@ import numpy as np
 # from configs.retinanet.visdrone import opt
 # from configs.retinanet.visdrone_chip import opt
 # from configs.visdrone_samples import opt
+# from configs.fcos.fcos_res50_coco import opt
 from configs.fcos.fcos_res50_visdrone import opt
 
 # from models.retinanet.model import RetinaNet as MODULE
