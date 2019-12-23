@@ -36,7 +36,7 @@ class Config:
     # eval
     eval_type = "default"  # [cocoeval, default]
     # parameters
-    pst_thd = 0.05
+    pst_thd = 0.2
     nms_thd = 0.5
     n_pre_nms = 20000
     # nms: greedy_nms, soft_nms
