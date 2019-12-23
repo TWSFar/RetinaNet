@@ -7,14 +7,11 @@ import numpy as np
 
 # from models_demo import model_demo
 
-# from configs.retinanet.visdrone import opt
-# from configs.retinanet.visdrone_chip import opt
+# from configs.visdrone import opt
+from configs.visdrone_chip import opt
 # from configs.visdrone_samples import opt
-# from configs.fcos.fcos_res50_coco import opt
-from configs.fcos.fcos_res50_visdrone import opt
 
-# from models.retinanet.model import RetinaNet as MODULE
-from models.fcos.model import FCOS as MODULE
+from models.model import RetinaNet
 
 from dataloaders import make_data_loader
 from models.utils.functions import PostProcess, DefaultEval
@@ -52,7 +49,7 @@ class Trainer(object):
 
         # Define Network
         # initilize the network here.
-        self.model = MODULE(opt, self.num_classes)
+        self.model = RetinaNet(opt, self.num_classes)
         # self.model = RetinaNet(opt, self.num_classes)
         self.model = self.model.to(opt.device)
 
@@ -342,4 +339,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
     # train()
-    fire.Fire(train)
+    fire.Fire()
