@@ -1,7 +1,7 @@
 import os
 import time
 from pprint import pprint
-from utils.devices import select_device
+from utils import select_device
 user_dir = os.path.expanduser('~')
 
 
@@ -9,19 +9,20 @@ class Config:
     # data
     dataset = "visdrone_chip"
     root_dir = user_dir + "/data/Visdrone/detect_voc/"
-    resume = True
+    resume = False
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024
-    pre = '/home/twsf/work/RetinaNet/run/visdrone_chip/20191123_115838/model_best.pth.tar'
+    pre = None
 
     # model
     backbone = 'resnet50'
+    neck = "fpn"
     if 'hrnet' in backbone:
         hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
-    batch_size = 4
+    batch_size = 3
     epochs = 40
     workers = 1
 
@@ -43,7 +44,8 @@ class Config:
     nms_type = 'greedy_nms'
 
     # loss
-    giou_loss = False
+    loss_cls_type = "focalloss"
+    loss_bbox_type = "smoothl1loss"
 
     # visual
     visualize = True

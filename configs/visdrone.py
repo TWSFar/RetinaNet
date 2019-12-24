@@ -18,6 +18,7 @@ class Config:
 
     # model
     backbone = 'resnet50'
+    neck = "fpn"
     hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
@@ -43,7 +44,8 @@ class Config:
     nms_type = 'greedy_nms'
 
     # loss
-    giou_loss = False
+    loss_cls_type = "focalloss"
+    loss_bbox_type = "smoothl1loss"
 
     # visual
     visualize = True

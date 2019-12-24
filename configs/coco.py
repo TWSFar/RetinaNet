@@ -1,6 +1,8 @@
+import os
 import time
 from pprint import pprint
 from utils.devices import select_device
+user_dir = os.path.expanduser('~')
 
 
 class Config:
@@ -8,39 +10,50 @@ class Config:
     dataset = "coco"
     root_dir = user_dir + "/work/RetinaNet/data/COCO"
     resume = False
-    resize_type = "letterbox"  # [regular, irregular, letterbox]
+    resize_type = "irregular"  # [regular, irregular, letterbox]
     min_size = 608
     max_size = 1024
-    pre = ''
+    pre = None
+
+    # model
+    backbone = 'hrnet_w48'
+    neck = "hrnet_neck"
+    if 'hrnet' in backbone:
+        hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
-    batch_size = 12
-    epochs = 50
-    workers = 3
+    batch_size = 2
+    epochs = 3
+    workers = 1
 
     # param for optimizer
-    lr = 1e-4
-    momentum = 0.995
+    adam = True
+    lr = 0.0002
+    momentum = 0.9
     decay = 5*1e-4
     steps = [0.8, 0.9]
-    scales = 0.3
+    gamma = 0.3
 
+    # eval
+    eval_type = "default"
     # parameters
-    pre_pst_thd = 0.05
-    post_pst_thd = 0.05
-    nms_thd = 0.6
-    n_pre_nms = 6000
+    pst_thd = 0.2
+    nms_thd = 0.5
+    n_pre_nms = 20000
+    # nms: greedy_nms, soft_nms
+    nms_type = 'greedy_nms'
 
     # loss
-    giou_loss = True
+    loss_cls_type = "focalloss"
+    loss_bbox_type = "smoothl1loss"
 
     # visual
     visualize = True
-    print_freq = 10
-    plot_every = 50  # every n batch plot
+    print_freq = 1
+    plot_every = 1  # every n batch plot
     saver_freq = 1
 
-    seed = time.time()
+    seed = int(time.time())
 
     def _parse(self, kwargs):
         state_dict = self._state_dict()

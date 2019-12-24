@@ -10,18 +10,15 @@ import numpy as np
 # from configs.visdrone import opt
 from configs.visdrone_chip import opt
 # from configs.visdrone_samples import opt
-
-from models.model import RetinaNet
+# from configs.coco import opt
 
 from dataloaders import make_data_loader
-from models.utils.functions import PostProcess, DefaultEval, re_resize
-from utils.visualization import TensorboardSummary
-from utils.saver import Saver
-from utils.timer import Timer
+from models import RetinaNet
+from models.utils import PostProcess, DefaultEval, re_resize
+from utils import TensorboardSummary, Saver, Timer
 
 import torch
 import torch.optim as optim
-
 from pycocotools.cocoeval import COCOeval
 
 import multiprocessing
@@ -328,7 +325,7 @@ def train(**kwargs):
                 'optimizer': trainer.optimizer.state_dict(),
             }, is_best)
 
-    print("Train done!, Sum time: {}, Best result: {}".format(time.time()-start_time, train.best_pred))
+    print("Train done!, Sum time: {}, Best result: {}".format(time.time()-start_time, trainer.best_pred))
 
     # cache result
     print("Backup result...")
@@ -338,4 +335,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
     # train()
-    fire.Fire()
+    fire.Fire(train)
