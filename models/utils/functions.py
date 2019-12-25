@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from models.utils.nms.nms_gpu import nms, soft_nms
+from models.utils.external.nms_gpu import nms, soft_nms
 
 
 class BBoxTransform(nn.Module):

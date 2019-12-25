@@ -1,6 +1,5 @@
 import os
 import time
-import numpy as np
 from pprint import pprint
 from utils.devices import select_device
 user_dir = os.path.expanduser('~')
