@@ -83,7 +83,7 @@ class RetinaNet(nn.Module):
             transformed_anchors = self.regressBoxes(anchors, pred_reg)
             transformed_anchors = self.clipBoxes(transformed_anchors, img_batch)
 
-            scores, class_id = torch.max(pred_cls, dim=2, keepdim=True)
+            scores, class_id = torch.max(pred_cls.sigmoid(), dim=2, keepdim=True)
 
             return scores.squeeze(2), class_id.squeeze(2), transformed_anchors
 
