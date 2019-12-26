@@ -10,8 +10,8 @@ class Config:
     dataset = "visdrone"
     root_dir = user_dir + "/data/Visdrone"
     resume = False
-    resize_type = "irregular"  # [regular, irregular, letterbox]
-    min_size = 608
+    resize_type = "letterbox"  # [regular, irregular, letterbox]
+    min_size = 1024
     max_size = 1024
     pre = None
 
@@ -21,7 +21,7 @@ class Config:
     hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
-    batch_size = 2
+    batch_size = 8
     epochs = 70
     workers = 1
 
