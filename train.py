@@ -106,6 +106,8 @@ class Trainer(object):
 
                 cls_loss, loc_loss = self.model([imgs, targets])
 
+                cls_loss = cls_loss.mean()
+                loc_loss = loc_loss.mean()
                 loss = cls_loss + loc_loss
 
                 if bool(loss == 0):
