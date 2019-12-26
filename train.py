@@ -7,8 +7,8 @@ import numpy as np
 
 # from models_demo import model_demo
 
-# from configs.visdrone import opt
-from configs.visdrone_chip import opt
+from configs.visdrone import opt
+# from configs.visdrone_chip import opt
 # from configs.visdrone_samples import opt
 # from configs.coco import opt
 

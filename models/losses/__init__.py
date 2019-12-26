@@ -3,6 +3,7 @@ from .smooth_l1_loss import SmoothL1Loss
 from .iou_loss import IoULoss
 from .giou_loss import GIoULoss
 from .balanced_l1_loss import BalancedL1Loss
+from .ciou_loss import CIoULoss
 
 
 def build_loss(args):
@@ -22,6 +23,9 @@ def build_loss(args):
 
     elif obj_type == "IoULoss":
         return IoULoss(**args)
+
+    elif obj_type == "CIoULoss":
+        return CIoULoss(**args)
 
     else:
         raise NotImplementedError

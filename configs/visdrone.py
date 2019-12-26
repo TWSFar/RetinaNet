@@ -51,9 +51,7 @@ class Config:
         reduction='sum',
         loss_weight=1.0)
     loss_reg = dict(
-        type='SmoothL1Loss',
-        beta=0.11,
-        loss_weight=1.0)
+        type='GIoULoss')
 
     # visual
     visualize = True
