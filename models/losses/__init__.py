@@ -1,9 +1,27 @@
 from .focal_loss import FocalLoss
+from .smooth_l1_loss import SmoothL1Loss
+from .iou_loss import IoULoss
+from .giou_loss import GIoULoss
+from .balanced_l1_loss import BalancedL1Loss
 
 
-def build_loss(opt):
-    if opt.loss_cls_type == 'focalloss':
-        return FocalLoss()
+def build_loss(args):
+    obj_type = args.pop('type')
+
+    if obj_type == 'FocalLoss':
+        return FocalLoss(**args)
+
+    elif obj_type == "SmoothL1Loss":
+        return SmoothL1Loss(**args)
+
+    elif obj_type == "BalancedL1Loss":
+        return BalancedL1Loss(**args)
+
+    elif obj_type == "GIoULoss":
+        return GIoULoss(**args)
+
+    elif obj_type == "IoULoss":
+        return IoULoss(**args)
 
     else:
         raise NotImplementedError

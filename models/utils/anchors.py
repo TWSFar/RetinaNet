@@ -30,6 +30,10 @@ class Anchors(nn.Module):
             self.scales = scales
 
     def forward(self, image_shape):
+        """
+        Return:
+            anchors: [1, num, 4]  4: [x1, y1, x2, y2]
+        """
         image_shape = np.array(image_shape)
         feature_shapes = [(image_shape + 2 ** x - 1) // (2 ** x) for x in self.pyramid_levels]
 

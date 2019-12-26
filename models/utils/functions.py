@@ -364,7 +364,14 @@ def re_resize(pre_bboxes, scale, resize_type):
     return pre_bboxes
 
 
-def calc_iou(a, b):
+def iou_cpu(a, b):
+    """
+    Args:
+        a: [N, 4],  4:[x1, y1, x2, y2]
+        b: [M, 4],  4:[x1, y1, x2, y2]
+    Return:
+        IoU: [N, M]
+    """
     area = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
 
     iw = torch.min(torch.unsqueeze(a[:, 2], dim=1), b[:, 2]) - torch.max(torch.unsqueeze(a[:, 0], 1), b[:, 0])
@@ -382,3 +389,33 @@ def calc_iou(a, b):
     IoU = intersection / ua
 
     return IoU
+
+
+def nms_cpu(dets, thresh):
+    x1 = dets[:, 0]
+    y1 = dets[:, 1]
+    x2 = dets[:, 2]
+    y2 = dets[:, 3]
+    scores = dets[:, 4]
+
+    order = scores.argsort(descending=True)
+    areas = (x2 - x1) * (y2 - y1)
+
+    keep = []
+    while order.size(0) > 0:
+        i = order[0].item()
+        keep.append(i)
+        xx1 = torch.max(x1[i], x1[order[1:]])
+        yy1 = torch.max(y1[i], y1[order[1:]])
+        xx2 = torch.min(x2[i], x2[order[1:]])
+        yy2 = torch.min(y2[i], y2[order[1:]])
+
+        zero = torch.tensor(0.0).to(dets.device)
+        w = torch.max(zero, xx2 - xx1)
+        h = torch.max(zero, yy2 - yy1)
+        inter = w * h
+        iou = inter / (areas[i] + areas[order[1:]] - inter + 1e-16)
+
+        order = order[1:][iou <= thresh]
+
+    return keep

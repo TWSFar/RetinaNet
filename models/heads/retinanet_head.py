@@ -22,7 +22,6 @@ class ClassificationModel(nn.Module):
         self.act4 = nn.ReLU()
 
         self.output = nn.Conv2d(feature_size, num_anchors*num_classes, kernel_size=3, padding=1)
-        self.output_act = nn.Sigmoid()
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
@@ -51,13 +50,12 @@ class ClassificationModel(nn.Module):
         out = self.act4(out)
 
         out = self.output(out)
-        out = self.output_act(out)
 
         out1 = out.permute(0, 2, 3, 1)
 
-        batch_size, width, height, channels = out1.shape
+        batch_size, height, width, channels = out1.shape
 
-        out2 = out1.view(batch_size, width, height, self.num_anchors, self.num_classes)
+        out2 = out1.view(batch_size, height, width, self.num_anchors, self.num_classes)
 
         return out2.contiguous().view(x.shape[0], -1, self.num_classes)
 

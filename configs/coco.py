@@ -13,7 +13,7 @@ class Config:
     resize_type = "irregular"  # [regular, irregular, letterbox]
     min_size = 608
     max_size = 1024
-    pre = None
+    pre = ""
 
     # model
     backbone = 'hrnet_w48'
@@ -44,8 +44,17 @@ class Config:
     nms_type = 'greedy_nms'
 
     # loss
-    loss_cls_type = "focalloss"
-    loss_bbox_type = "smoothl1loss"
+    loss_cls = dict(
+        type='FocalLoss',
+        use_sigmoid=True,
+        gamma=2.0,
+        alpha=0.25,
+        reduction='sum',
+        loss_weight=1.0)
+    loss_reg = dict(
+        type='SmoothL1Loss',
+        beta=0.11,
+        loss_weight=1.0)
 
     # visual
     visualize = True
