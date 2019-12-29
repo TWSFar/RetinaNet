@@ -21,7 +21,7 @@ class Config:
     hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
-    batch_size = 8
+    batch_size = 3
     epochs = 70
     workers = 1
 
@@ -51,7 +51,7 @@ class Config:
         reduction='sum',
         loss_weight=1.0)
     loss_reg = dict(
-        type='GIoULoss')
+        type='CIoULoss')
 
     # visual
     visualize = True

@@ -4,10 +4,15 @@ import torch.nn as nn
 
 
 class Anchors(nn.Module):
-    def __init__(self, pyramid_levels=[3, 4, 5, 6, 7], strides=None, sizes=None, ratios=None, scales=None):
+    def __init__(self, pyramid_levels=[3, 4, 5, 6, 7],
+                 strides=None, sizes=None, ratios=None, scales=None,
+                 gt_restrict_range=[0, 64, 128, 256, 512, 99999]):
         super(Anchors, self).__init__()
 
+        assert len(pyramid_levels) == len(gt_restrict_range) - 1
+
         self.pyramid_levels = pyramid_levels
+        self.gt_restrict_range = gt_restrict_range
 
         if strides is None:
             self.strides = [2 ** x for x in self.pyramid_levels]
@@ -39,15 +44,27 @@ class Anchors(nn.Module):
 
         # compute anchors over all pyramid levels
         all_anchors = np.zeros((0, 4)).astype(np.float32)
+        all_restrictions = np.zeros((0, 2)).astype(np.float32)
 
         for idx, p in enumerate(self.pyramid_levels):
-            anchors = generate_anchors(base_size=self.sizes[idx], ratios=self.ratios, scales=self.scales)
-            shifted_anchors = shift(feature_shapes[idx], self.strides[idx], anchors)
+            anchors = generate_anchors(base_size=self.sizes[idx],
+                                       ratios=self.ratios,
+                                       scales=self.scales)
+            shifted_anchors = shift(feature_shapes[idx],
+                                    self.strides[idx], anchors)
+            restriction = generate_ranges(shifted_anchors.shape[0],
+                                          self.gt_restrict_range[idx],
+                                          self.gt_restrict_range[idx+1])
+
             all_anchors = np.append(all_anchors, shifted_anchors, axis=0)
+            all_restrictions = np.append(all_restrictions,
+                                         restriction, axis=0)
 
         all_anchors = np.expand_dims(all_anchors, axis=0)
+        all_restrictions = np.expand_dims(all_restrictions, axis=0)
 
-        return torch.from_numpy(all_anchors.astype(np.float32))
+        return torch.from_numpy(all_anchors.astype(np.float32)), \
+            torch.from_numpy(all_restrictions.astype(np.float32))
 
 
 def generate_anchors(base_size=16, ratios=None, scales=None):
@@ -84,37 +101,12 @@ def generate_anchors(base_size=16, ratios=None, scales=None):
     return anchors
 
 
-def compute_shape(image_shape, pyramid_levels):
-    """Compute shapes based on pyramid levels.
+def generate_ranges(anchor_number, min_length, max_length):
+    restriction = np.zeros((anchor_number, 2)).astype(np.float32)
+    restriction[:, 0] = min_length
+    restriction[:, 1] = max_length
 
-    :param image_shape:
-    :param pyramid_levels:
-    :return:
-    """
-    image_shape = np.array(image_shape[:2])
-    image_shapes = [(image_shape + 2 ** x - 1) // (2 ** x) for x in pyramid_levels]
-    return image_shapes
-
-
-def anchors_for_shape(
-                    image_shape,
-                    pyramid_levels=None,
-                    ratios=None,
-                    scales=None,
-                    strides=None,
-                    sizes=None,
-                    shapes_callback=None):
-
-    image_shapes = compute_shape(image_shape, pyramid_levels)
-
-    # compute anchors over all pyramid levels
-    all_anchors = np.zeros((0, 4))
-    for idx, p in enumerate(pyramid_levels):
-        anchors = generate_anchors(base_size=sizes[idx], ratios=ratios, scales=scales)
-        shifted_anchors = shift(image_shapes[idx], strides[idx], anchors)
-        all_anchors = np.append(all_anchors, shifted_anchors, axis=0)
-
-    return all_anchors
+    return restriction
 
 
 def shift(shape, stride, anchors):
@@ -138,3 +130,44 @@ def shift(shape, stride, anchors):
     all_anchors = all_anchors.reshape((K * A, 4))
 
     return all_anchors
+
+
+# debug
+def compute_shape(image_shape, pyramid_levels):
+    """Compute shapes based on pyramid levels.
+
+    :param image_shape:
+    :param pyramid_levels:
+    :return:
+    """
+    image_shape = np.array(image_shape[:2])
+    image_shapes = [(image_shape + 2 ** x - 1) // (2 ** x) for x in pyramid_levels]
+    return image_shapes
+
+
+# debug
+def anchors_for_shape(
+                    image_shape,
+                    pyramid_levels=None,
+                    ratios=None,
+                    scales=None,
+                    strides=None,
+                    sizes=None,
+                    shapes_callback=None):
+
+    image_shapes = compute_shape(image_shape, pyramid_levels)
+
+    # compute anchors over all pyramid levels
+    all_anchors = np.zeros((0, 4))
+    for idx, p in enumerate(pyramid_levels):
+        anchors = generate_anchors(base_size=sizes[idx], ratios=ratios, scales=scales)
+        shifted_anchors = shift(image_shapes[idx], strides[idx], anchors)
+        all_anchors = np.append(all_anchors, shifted_anchors, axis=0)
+
+    return all_anchors
+
+
+if __name__ == "__main__":
+    anchors = Anchors()
+    temp = anchors([30, 40])
+    pass

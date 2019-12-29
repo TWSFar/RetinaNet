@@ -49,7 +49,9 @@ class RetinaNet(nn.Module):
         features = self.neck(features)
         pred_cls = torch.cat([self.cls_head(feature) for feature in features], dim=1)
         pred_reg = torch.cat([self.reg_head(feature) for feature in features], dim=1)
-        anchors = self.anchors(img_batch.shape[2:]).to(device)
+        anchors, resticts = self.anchors(img_batch.shape[2:])
+        anchors = anchors.to(device)
+        resticts = resticts.to(device)
 
         if self.training:
             # return self.loss(pred_cls, pred_reg, anchors[0], annotations)
@@ -63,7 +65,9 @@ class RetinaNet(nn.Module):
                     loss_reg.append(tensor_zero)
                     continue
 
-                target_cls, target_bbox, pst_idx = self._encode(anchors[0], annotation)
+                target_cls, target_bbox, pst_idx = self._encode(anchors[0],
+                                                                annotation,
+                                                                resticts[0])
                 if pst_idx.sum() == 0:
                     loss_cls.append(tensor_zero)
                     loss_reg.append(tensor_zero)
@@ -87,7 +91,7 @@ class RetinaNet(nn.Module):
 
             return scores.squeeze(2), class_id.squeeze(2), transformed_anchors
 
-    def _encode(self, anchors, annotation):
+    def _encode(self, anchors, annotation, resticts):
         device = anchors.device
         targets = torch.ones(anchors.shape[0], self.num_classes) * -1
         targets = targets.to(device)
@@ -97,8 +101,11 @@ class RetinaNet(nn.Module):
         IoU_max, IoU_argmax = torch.max(IoU, dim=1)  # num_anchors x 1
 
         assigned_annotations = annotation[IoU_argmax, :]
+        agd_ann_wh = assigned_annotations[:, 2:4] - assigned_annotations[:, :2]
+        scale_indices = (agd_ann_wh.max(dim=1)[0] > resticts[:, 0]) \
+            & (agd_ann_wh.max(dim=1)[0] < resticts[:, 1])
 
-        positive_indices = torch.ge(IoU_max, 0.5)
+        positive_indices = torch.ge(IoU_max, 0.5) & scale_indices
 
         targets[torch.lt(IoU_max, 0.4), :] = 0
         targets[positive_indices, :] = 0
