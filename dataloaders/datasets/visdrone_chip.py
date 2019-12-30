@@ -46,13 +46,13 @@ class VisdroneDataset(Dataset):
         self.input_size = (self.min_size, self.max_size)
         self.resize = self.resizes(opt.resize_type)
         self.train_tsf = transforms.Compose([
-            tsf.Normalizer(),
+            tsf.Normalizer(opt.mean, opt.std),
             tsf.Augmenter(),
             self.resize
         ])
 
         self.test_tsf = transforms.Compose([
-            tsf.Normalizer(),
+            tsf.Normalizer(opt.mean, opt.std),
             self.resize
         ])
 

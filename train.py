@@ -27,22 +27,24 @@ multiprocessing.set_start_method('spawn', True)
 
 class Trainer(object):
     def __init__(self, mode):
+        torch.cuda.manual_seed(opt.seed)
         # Define Saver
         self.saver = Saver(opt, mode)
+
         # visualize
         if opt.visualize:
-            self.summary = TensorboardSummary(self.saver.experiment_dir)
+            self.summary = TensorboardSummary(self.saver.experiment_dir, opt)
             self.writer = self.summary.create_summary()
 
         # Define Dataloader
         # train dataset
         self.train_dataset, self.train_loader = make_data_loader(opt, train=True)
-        self.num_bt_tr = len(self.train_loader)
+        self.nbatch_train = len(self.train_loader)
         self.num_classes = self.train_dataset.num_classes
 
         # val dataset
         self.val_dataset, self.val_loader = make_data_loader(opt, train=False)
-        self.num_bt_val = len(self.val_loader)
+        self.nbatch_val = len(self.val_loader)
 
         # Define Network
         # initilize the network here.
@@ -86,7 +88,7 @@ class Trainer(object):
                                                device_ids=opt.gpu_id)
 
         self.loss_hist = collections.deque(maxlen=500)
-        self.timer = Timer(opt.epochs, self.num_bt_tr, self.num_bt_val)
+        self.timer = Timer(opt.epochs, self.nbatch_train, self.nbatch_val)
         self.step_time = collections.deque(maxlen=opt.print_freq)
 
     def training(self, epoch):
@@ -119,7 +121,7 @@ class Trainer(object):
                 epoch_loss.append(float(loss))
 
                 # visualize
-                global_step = iter_num + self.num_bt_tr * epoch + 1
+                global_step = iter_num + self.nbatch_train * epoch + 1
                 self.writer.add_scalar('train/cls_loss', cls_loss.cpu().item(), global_step)
                 self.writer.add_scalar('train/loc_loss', loc_loss.cpu().item(), global_step)
 
@@ -132,7 +134,7 @@ class Trainer(object):
                                  "loss_cls: {:1.5f}, "
                                  "loss_bbox: {:1.5f}, "
                                  "Running loss: {:1.5f}").format(
-                                    epoch, iter_num + 1, self.num_bt_tr,
+                                    epoch, iter_num + 1, self.nbatch_train,
                                     self.optimizer.param_groups[0]['lr'],
                                     eta, np.sum(self.step_time),
                                     float(cls_loss), float(loc_loss),
@@ -181,7 +183,7 @@ class Trainer(object):
                     def_eval.statistics(outputs, targets, iou_thresh=0.5)
 
                 # visualize
-                global_step = ii + self.num_bt_val * epoch
+                global_step = ii + self.nbatch_val * epoch
                 if global_step % opt.plot_every == 0:
                     self.summary.visualize_image(
                         self.writer,
@@ -316,7 +318,7 @@ def train(**kwargs):
 
         is_best = ap50 > trainer.best_pred
         trainer.best_pred = max(ap50, trainer.best_pred)
-        if (epoch % opt.saver_freq == 0) or is_best:
+        if (epoch % opt.saver_freq == 0 and epoch != 0) or is_best:
             trainer.saver.save_checkpoint({
                 'epoch': epoch,
                 'state_dict': trainer.model.module.state_dict() if len(opt.gpu_id) > 1

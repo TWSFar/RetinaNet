@@ -1,5 +1,4 @@
 import os
-import time
 from pprint import pprint
 from utils.devices import select_device
 user_dir = os.path.expanduser('~')
@@ -9,10 +8,12 @@ class Config:
     # data
     dataset = "visdrone"
     root_dir = user_dir + "/data/Visdrone"
-    resume = False
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024
+    mean = [0.373, 0.378, 0.365]
+    std = [0.192, 0.183, 0.194]
+    resume = False
     pre = None
 
     # model
@@ -59,7 +60,7 @@ class Config:
     plot_every = 50  # every n batch plot
     saver_freq = 1
 
-    seed = int(time.time())
+    seed = 1
 
     def _parse(self, kwargs):
         state_dict = self._state_dict()

@@ -101,11 +101,11 @@ class RetinaNet(nn.Module):
         IoU_max, IoU_argmax = torch.max(IoU, dim=1)  # num_anchors x 1
 
         assigned_annotations = annotation[IoU_argmax, :]
-        # agd_ann_wh = assigned_annotations[:, 2:4] - assigned_annotations[:, :2]
-        # scale_indices = (agd_ann_wh.max(dim=1)[0] > resticts[:, 0]) \
-        #     & (agd_ann_wh.max(dim=1)[0] < resticts[:, 1])
+        agd_ann_wh = assigned_annotations[:, 2:4] - assigned_annotations[:, :2]
+        scale_indices = (agd_ann_wh.max(dim=1)[0] > resticts[:, 0]) \
+            & (agd_ann_wh.max(dim=1)[0] < resticts[:, 1])
 
-        positive_indices = torch.ge(IoU_max, 0.5)
+        positive_indices = torch.ge(IoU_max, 0.5) & scale_indices
 
         targets[torch.lt(IoU_max, 0.4), :] = 0
         targets[positive_indices, :] = 0

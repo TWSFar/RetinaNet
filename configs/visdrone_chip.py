@@ -1,5 +1,4 @@
 import os
-import time
 from pprint import pprint
 from utils import select_device
 user_dir = os.path.expanduser('~')
@@ -9,10 +8,12 @@ class Config:
     # data
     dataset = "visdrone_chip"
     root_dir = user_dir + "/data/Visdrone/detect_voc/"
-    resume = False
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024
+    mean = [0.382, 0.383, 0.367]
+    std = [0.164, 0.156, 0.164]
+    resume = False
     pre = None
 
     # model
@@ -62,7 +63,7 @@ class Config:
     plot_every = 200  # every n batch plot
     saver_freq = 1
 
-    seed = int(time.time())
+    seed = 2
 
     def _parse(self, kwargs):
         state_dict = self._state_dict()
