@@ -63,7 +63,7 @@ class Config:
     plot_every = 200  # every n batch plot
     saver_freq = 1
 
-    seed = 2
+    seed = 1
 
     def _parse(self, kwargs):
         state_dict = self._state_dict()

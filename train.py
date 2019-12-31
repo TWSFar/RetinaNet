@@ -23,11 +23,12 @@ from pycocotools.cocoeval import COCOeval
 
 import multiprocessing
 multiprocessing.set_start_method('spawn', True)
+torch.manual_seed(opt.seed)
+torch.cuda.manual_seed(opt.seed)
 
 
 class Trainer(object):
     def __init__(self, mode):
-        torch.cuda.manual_seed(opt.seed)
         # Define Saver
         self.saver = Saver(opt, mode)
 

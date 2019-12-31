@@ -222,14 +222,8 @@ def show_image(img, labels):
 
 
 if __name__ == '__main__':
-    from easydict import EasyDict
     from torch.utils.data import DataLoader
-    opt = EasyDict()
-    opt.root_dir = '/home/twsf/data/Visdrone/detect_voc'
-    opt.batch_size = 2
-    opt.input_size = (846, 608)
-    opt.min_side = 608
-    opt.max_size = 1024
+    from configs.visdrone_chip import opt
     dataset = VisdroneDataset(opt)
     print(dataset.labels)
     sample = dataset.__getitem__(0)
