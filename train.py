@@ -160,7 +160,7 @@ class Trainer(object):
             results = []
             image_ids = []
             for ii, data in enumerate(self.val_loader):
-                # if ii > 3: break
+                # if ii > 0: break
                 scale = data['scale']
                 index = data['index']
                 imgs = data['img'].to(opt.device).float()
@@ -328,7 +328,8 @@ def train(**kwargs):
                 'optimizer': trainer.optimizer.state_dict(),
             }, is_best)
 
-    print("Train done!, Sum time: {}, Best result: {}".format(time.time()-start_time, trainer.best_pred))
+    all_time = trainer.timer.second2hour(time.time()-start_time)
+    print("Train done!, Sum time: {}, Best result: {}".format(all_time, trainer.best_pred))
 
     # cache result
     print("Backup result...")

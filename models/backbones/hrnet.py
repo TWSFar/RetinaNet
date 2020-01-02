@@ -15,11 +15,13 @@ import logging
 import torch
 import torch.nn as nn
 import torch._utils
+from yacs.config import CfgNode as CN
+user_dir = os.path.expanduser('~')
 
 BN_MOMENTUM = 0.1
 logger = logging.getLogger(__name__)
 
-user_dir = os.path.expanduser('~')
+model_cfg = "lib/hrnet_config/{}.yaml"
 model_path = {
     'hrnet_w18_c': '',
     'hrnet_w18_small_v1': '',
@@ -384,12 +386,12 @@ class HRNet(nn.Module):
 
             modules.append(
                 HighResolutionModule(num_branches,
-                                      block,
-                                      num_blocks,
-                                      num_inchannels,
-                                      num_channels,
-                                      fuse_method,
-                                      reset_multi_scale_output)
+                                     block,
+                                     num_blocks,
+                                     num_inchannels,
+                                     num_channels,
+                                     fuse_method,
+                                     reset_multi_scale_output)
             )
             num_inchannels = modules[-1].get_num_inchannels()
 
@@ -453,7 +455,14 @@ class HRNet(nn.Module):
             self.load_state_dict(model_dict)
 
 
-def hrnet(cfg):
+def hrnet(NAME):
+    cfg = CN()
+    cfg.NAME = NAME
+    cfg.MODEL = CN(new_allowed=True)
+    cfg.defrost()
+    hrnet_cfg = model_cfg.format(NAME)
+    cfg.merge_from_file(hrnet_cfg)
+    cfg.freeze()
     model = HRNet(cfg)
     pretrained = os.path.join(user_dir, model_path[cfg['NAME']])
     model.init_weights(pretrained)
@@ -461,14 +470,7 @@ def hrnet(cfg):
 
 
 if __name__ == "__main__":
-    from yacs.config import CfgNode as CN
-    _C = CN()
-    _C.MODEL = CN(new_allowed=True)
-    _C.defrost()
-    _C.NAME = 'hrnet_w18_small_v2'
-    _C.merge_from_file('/home/twsf/work/RetinaNet/lib/hrnet_config/hrnet_w18_small_v2.yaml')
-    _C.freeze()
-    model = hrnet(_C)
+    model = hrnet("hrnet_w48")
     input = torch.rand(2, 3, 512, 512)
     output = model(input)
     pass

@@ -19,8 +19,6 @@ class Config:
     # model
     backbone = 'resnet50'
     neck = "fpn"
-    if 'hrnet' in backbone:
-        hrnet_cfg = user_dir + '/work/RetinaNet/lib/hrnet_config/hrnet_w48.yaml'
 
     # train
     batch_size = 4
