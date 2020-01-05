@@ -122,7 +122,7 @@ class Trainer(object):
                 global_step = iter_num + self.nbatch_train * epoch + 1
                 loss_logs = ""
                 for _key, _value in log_vars.items():
-                    loss_logs += "{}: {:.4f} ".format(_key, _value)
+                    loss_logs += "{}: {:.4f}  ".format(_key, _value)
                     self.writer.add_scalar('train/{}'.format(_key),
                                            _value,
                                            global_step)
@@ -132,7 +132,7 @@ class Trainer(object):
                 self.step_time.append(batch_time)
                 if global_step % opt.print_freq == 0:
                     printline = ("Epoch: [{}][{}/{}]  "
-                                 "lr: {} eta: {} time: {:1.3f} "
+                                 "lr: {}  eta: {}  time: {:1.3f}  "
                                  "{}"
                                  "Running loss: {:1.5f}").format(
                                     epoch, iter_num + 1, self.nbatch_train,
