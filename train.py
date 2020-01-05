@@ -100,7 +100,7 @@ class Trainer(object):
             self.model.freeze_bn()
         epoch_loss = []
         for iter_num, data in enumerate(self.train_loader):
-            if iter_num > 3: break
+            # if iter_num > 3: break
             try:
                 temp_time = time.time()
                 self.optimizer.zero_grad()
