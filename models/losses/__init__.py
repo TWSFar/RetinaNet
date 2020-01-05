@@ -4,6 +4,7 @@ from .iou_loss import IoULoss
 from .giou_loss import GIoULoss
 from .balanced_l1_loss import BalancedL1Loss
 from .ciou_loss import CIoULoss
+from .cross_entropy_loss import CrossEntropyLoss
 
 
 def build_loss(args):
@@ -26,6 +27,9 @@ def build_loss(args):
 
     elif obj_type == "CIoULoss":
         return CIoULoss(**args)
+
+    elif obj_type == "CrossEntropyLoss":
+        return CrossEntropyLoss(**args)
 
     else:
         raise NotImplementedError

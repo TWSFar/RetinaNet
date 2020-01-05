@@ -19,26 +19,37 @@ class FocalLoss(nn.Module):
         self.reduction = reduction
         self.loss_weight = loss_weight
 
-    def forward(self, pred, target):
+    def forward(self,
+                pred,
+                target,
+                weight=None,
+                avg_factor=None):
         device = pred.device
+        assert pred.shape[0] == target.shape[0]
 
-        if target.shape[0] > 0:
-            pred_sigmoid = pred.sigmoid()
-            pred_sigmoid = torch.clamp(pred_sigmoid, 1e-4, 1.0 - 1e-4)
-            target = target.type_as(pred)
-            pt = (1 - pred_sigmoid) * target + pred_sigmoid * (1 - target)
-            focal_weight = (self.alpha * target + (1 - self.alpha) *
-                            (1 - target)) * pt.pow(self.gamma)
-            loss = F.binary_cross_entropy_with_logits(
-                pred, target, reduction='none') * focal_weight
+        if len(target.shape) == 1:
+            target = torch.zeros(
+                pred.shape,
+                dtype=torch.long,
+                device=device).scatter_(
+                    1, target.view(-1, 1), 1)
 
-            loss = torch.where(torch.ne(target, -1.0), loss, torch.zeros(loss.shape).to(loss.device))
+        pred_sigmoid = pred.sigmoid()
+        pred_sigmoid = torch.clamp(pred_sigmoid, 1e-4, 1.0 - 1e-4)
+        target = target.type_as(pred)
+        pt = (1 - pred_sigmoid) * target + pred_sigmoid * (1 - target)
+        focal_weight = (self.alpha * target + (1 - self.alpha) *
+                        (1 - target)) * pt.pow(self.gamma)
+        loss = F.binary_cross_entropy_with_logits(
+            pred, target, reduction='none') * focal_weight
 
-            loss = weight_reduce_loss(loss,
-                                      weight=self.loss_weight,
-                                      reduction=self.reduction)
+        loss = torch.where(torch.ne(target, -1.0),
+                           loss, torch.zeros(loss.shape).to(device))
 
-        else:
-            loss = torch.tensor(0).float().to(device)
+        loss = self.loss_weight * weight_reduce_loss(
+            loss,
+            weight=weight,
+            reduction=self.reduction,
+            avg_factor=avg_factor)
 
         return loss

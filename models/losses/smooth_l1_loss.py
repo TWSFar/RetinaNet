@@ -7,11 +7,18 @@ from .utils import (weight_reduce_loss, encode,
 class SmoothL1Loss(nn.Module):
     def __init__(self, beta=1.0, reduction='mean', loss_weight=1.0):
         super(SmoothL1Loss, self).__init__()
+        assert beta > 0
+
         self.beta = beta
         self.reduction = reduction
         self.loss_weight = loss_weight
 
-    def forward(self, pred, target, anchor):
+    def forward(self,
+                pred,
+                target,
+                anchor,
+                weight=None,
+                avg_factor=None):
         """
         Args:
             pred: [N_max, 4],  4: dx, dy, dw, dh
@@ -20,24 +27,20 @@ class SmoothL1Loss(nn.Module):
         Return:
             loss
         """
-        assert self.beta > 0
         assert pred.shape[0] == target.shape[0]
 
-        device = pred.device
-        if target.shape[0] > 0:
-            anchor = xyxy_2_xywh(anchor)
-            variances = torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(device)
-            gt = encode(target, anchor, variances)
+        anchor = xyxy_2_xywh(anchor)
+        variances = torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(pred.device)
+        gt = encode(target, anchor, variances)
 
-            diff = torch.abs(pred - gt)
-            loss = torch.where(diff < self.beta, 0.5 * diff * diff / self.beta,
-                               diff - 0.5 * self.beta)
+        diff = torch.abs(pred - gt)
+        loss = torch.where(diff < self.beta, 0.5 * diff * diff / self.beta,
+                           diff - 0.5 * self.beta)
 
-            loss = weight_reduce_loss(loss,
-                                      weight=self.loss_weight,
-                                      reduction=self.reduction)
-
-        else:
-            loss = torch.tensor(0).float().to(device)
+        loss = self.loss_weight * weight_reduce_loss(
+            loss,
+            weight=weight,
+            reduction=self.reduction,
+            avg_factor=avg_factor)
 
         return loss

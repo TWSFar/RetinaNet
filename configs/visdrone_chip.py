@@ -17,31 +17,9 @@ class Config:
     pre = None
 
     # model
+    model = "retina"
     backbone = 'resnet50'
     neck = "fpn"
-
-    # train
-    batch_size = 4
-    epochs = 40
-    workers = 1
-
-    # param for optimizer
-    adam = True
-    lr = 0.0002
-    momentum = 0.9
-    decay = 5*1e-4
-    steps = [0.8, 0.9]
-    gamma = 0.3
-
-    # eval
-    eval_type = "default"
-    # parameters
-    pst_thd = 0.2
-    nms_thd = 0.5
-    n_pre_nms = 20000
-    # nms: greedy_nms, soft_nms
-    nms_type = 'greedy_nms'
-
     # loss
     loss_cls = dict(
         type='FocalLoss',
@@ -55,8 +33,29 @@ class Config:
         beta=0.11,
         loss_weight=1.0)
 
+    # train
+    batch_size = 4
+    epochs = 40
+    workers = 1
+
+    # optimizer
+    adam = True
+    lr = 0.0002
+    momentum = 0.9
+    decay = 5*1e-4
+    steps = [0.8, 0.9]
+    gamma = 0.3
+
+    # eval
+    eval_type = "default"
+    nms = dict(
+        type="GreedyNms",
+        pst_thd=0.2,
+        nms_thd=0.5,
+        n_pre_nms=20000
+    )
+
     # visual
-    visualize = True
     print_freq = 50
     plot_every = 200  # every n batch plot
     saver_freq = 1

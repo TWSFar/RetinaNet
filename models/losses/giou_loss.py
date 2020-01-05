@@ -12,7 +12,12 @@ class GIoULoss(nn.Module):
         self.reduction = reduction
         self.loss_weight = loss_weight
 
-    def forward(self, pred, target, anchor):
+    def forward(self,
+                pred,
+                target,
+                anchor=None,
+                weight=None,
+                avg_factor=None):
         """
         Args:
             pred: [N_max, 4],  4: dx, dy, dw, dh
@@ -22,20 +27,22 @@ class GIoULoss(nn.Module):
             loss
         """
         assert pred.shape[0] == target.shape[0]
-        device = pred.device
 
-        if target.shape[0] > 0:
-            variances = torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(device)
+        variances = torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(pred.device)
+
+        if anchor is None:
+            pred_box = pred
+        else:
             anchor = xyxy_2_xywh(anchor)
             pred_box = decode(pred, anchor, variances)
 
-            giou = bbox_iou(pred_box, target, GIoU=True).clamp(min=self.eps)
-            loss = -giou.log()
+        giou = bbox_iou(pred_box, target, GIoU=True).clamp(min=self.eps)
+        loss = -giou.log()
 
-            loss = weight_reduce_loss(loss,
-                                      weight=self.loss_weight,
-                                      reduction=self.reduction)
-        else:
-            loss = torch.tensor(0).float().to(device)
+        loss = self.loss_weight * weight_reduce_loss(
+            loss,
+            weight=weight,
+            reduction=self.reduction,
+            avg_factor=avg_factor)
 
         return loss

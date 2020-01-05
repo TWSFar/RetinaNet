@@ -14,7 +14,8 @@ from configs.visdrone import opt
 
 from dataloaders import make_data_loader
 from models import RetinaNet
-from models.utils import PostProcess, DefaultEval, re_resize
+from models.utils import (PostProcess, DefaultEval,
+                          re_resize, parse_losses)
 from utils import TensorboardSummary, Saver, Timer
 
 import torch
@@ -33,9 +34,8 @@ class Trainer(object):
         self.saver = Saver(opt, mode)
 
         # visualize
-        if opt.visualize:
-            self.summary = TensorboardSummary(self.saver.experiment_dir, opt)
-            self.writer = self.summary.create_summary()
+        self.summary = TensorboardSummary(self.saver.experiment_dir, opt)
+        self.writer = self.summary.create_summary()
 
         # Define Dataloader
         # train dataset
@@ -54,7 +54,7 @@ class Trainer(object):
         self.model = self.model.to(opt.device)
 
         # contain nms for val
-        self.post_pro = PostProcess(opt)
+        self.post_pro = PostProcess(**opt.nms)
 
         # Define Optimizer
         if opt.adam:
@@ -100,51 +100,48 @@ class Trainer(object):
             self.model.freeze_bn()
         epoch_loss = []
         for iter_num, data in enumerate(self.train_loader):
-            # if iter_num > 3: break
+            if iter_num > 3: break
             try:
                 temp_time = time.time()
                 self.optimizer.zero_grad()
                 imgs = data['img'].to(opt.device)
                 targets = data['annot'].to(opt.device)
 
-                cls_loss, loc_loss = self.model([imgs, targets])
-
-                cls_loss = cls_loss.mean()
-                loc_loss = loc_loss.mean()
-                loss = cls_loss + loc_loss
+                losses = self.model([imgs, targets])
+                loss, log_vars = parse_losses(losses)
 
                 if bool(loss == 0):
                     continue
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.1)
                 self.optimizer.step()
-                self.loss_hist.append(float(loss))
-                epoch_loss.append(float(loss))
+                self.loss_hist.append(float(loss.cpu().item()))
+                epoch_loss.append(float(loss.cpu().item()))
 
                 # visualize
                 global_step = iter_num + self.nbatch_train * epoch + 1
-                self.writer.add_scalar('train/cls_loss', cls_loss.cpu().item(), global_step)
-                self.writer.add_scalar('train/loc_loss', loc_loss.cpu().item(), global_step)
+                loss_logs = ""
+                for _key, _value in log_vars.items():
+                    loss_logs += "{}: {:.4f} ".format(_key, _value)
+                    self.writer.add_scalar('train/{}'.format(_key),
+                                           _value,
+                                           global_step)
 
                 batch_time = time.time() - temp_time
                 eta = self.timer.eta(global_step, batch_time)
                 self.step_time.append(batch_time)
                 if global_step % opt.print_freq == 0:
                     printline = ("Epoch: [{}][{}/{}]  "
-                                 "lr: {}, eta: {}, time: {:1.3f}, "
-                                 "loss_cls: {:1.5f}, "
-                                 "loss_bbox: {:1.5f}, "
+                                 "lr: {} eta: {} time: {:1.3f} "
+                                 "{}"
                                  "Running loss: {:1.5f}").format(
                                     epoch, iter_num + 1, self.nbatch_train,
                                     self.optimizer.param_groups[0]['lr'],
                                     eta, np.sum(self.step_time),
-                                    float(cls_loss), float(loc_loss),
+                                    loss_logs,
                                     np.mean(self.loss_hist))
                     print(printline)
                     self.saver.save_experiment_log(printline)
-
-                del cls_loss
-                del loc_loss
 
             except Exception as e:
                 print(e)
@@ -169,7 +166,8 @@ class Trainer(object):
                 # run network
                 scores, labels, boxes = self.model(imgs)
 
-                scores_bt, labels_bt, boxes_bt = self.post_pro(scores, labels, boxes)
+                scores_bt, labels_bt, boxes_bt = self.post_pro(
+                    scores, labels, boxes, imgs.shape[-2:])
 
                 outputs = []
                 for k in range(len(boxes_bt)):

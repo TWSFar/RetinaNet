@@ -30,75 +30,69 @@ class Anchors(nn.Module):
             self.ratios = ratios
 
         if scales is None:
-            self.scales = np.array([2 ** 0, 2 ** (1.0 / 3.0), 2 ** (2.0 / 3.0)])
+            self.scales = np.array([2 ** 0, 2 ** (1.0/3.0), 2 ** (2.0/3.0)])
         else:
             self.scales = scales
 
-    def forward(self, image_shape):
+        self.anchors = []
+        for size in self.sizes:
+            self.anchors.append(self.generate_anchors(base_size=size))
+
+    def forward(self, featmap_sizes, dtype, device):
         """
         Return:
             anchors: [1, num, 4]  4: [x1, y1, x2, y2]
         """
-        image_shape = np.array(image_shape)
-        feature_shapes = [(image_shape + 2 ** x - 1) // (2 ** x) for x in self.pyramid_levels]
 
         # compute anchors over all pyramid levels
-        all_anchors = np.zeros((0, 4)).astype(np.float32)
-        all_restrictions = np.zeros((0, 2)).astype(np.float32)
+        all_level_anchors = []
+        all_level_restrictions = []
 
         for idx, p in enumerate(self.pyramid_levels):
-            anchors = generate_anchors(base_size=self.sizes[idx],
-                                       ratios=self.ratios,
-                                       scales=self.scales)
-            shifted_anchors = shift(feature_shapes[idx],
-                                    self.strides[idx], anchors)
+            shifted_anchors = shift(featmap_sizes[idx],
+                                    self.strides[idx],
+                                    self.anchors[idx])
             restriction = generate_ranges(shifted_anchors.shape[0],
                                           self.gt_restrict_range[idx],
                                           self.gt_restrict_range[idx+1])
 
-            all_anchors = np.append(all_anchors, shifted_anchors, axis=0)
-            all_restrictions = np.append(all_restrictions,
-                                         restriction, axis=0)
+            all_level_anchors.append(torch.tensor(shifted_anchors,
+                                                  dtype=dtype,
+                                                  device=device))
+            all_level_restrictions.append(torch.tensor(restriction,
+                                                       dtype=dtype,
+                                                       device=device))
 
-        all_anchors = np.expand_dims(all_anchors, axis=0)
-        all_restrictions = np.expand_dims(all_restrictions, axis=0)
+        return torch.cat(all_level_anchors), \
+            torch.cat(all_level_restrictions)
 
-        return torch.from_numpy(all_anchors.astype(np.float32)), \
-            torch.from_numpy(all_restrictions.astype(np.float32))
+    def generate_anchors(self, base_size=16):
+        """
+        Generate anchor (reference) windows by enumerating aspect ratios X
+        """
+        num_anchors = len(self.ratios) * len(self.scales)
 
+        # initialize output anchors
+        anchors = np.zeros((num_anchors, 4))
 
-def generate_anchors(base_size=16, ratios=None, scales=None):
-    """
-    Generate anchor (reference) windows by enumerating aspect ratios X
-    scales w.r.t. a reference window.
-    """
+        # scale base_size
+        anchors[:, 2:] = base_size * np.tile(self.scales,
+                                             (2, len(self.ratios))).T
 
-    if ratios is None:
-        ratios = np.array([0.5, 1, 2])
+        # compute areas of anchors
+        areas = anchors[:, 2] * anchors[:, 3]
 
-    if scales is None:
-        scales = np.array([2 ** 0, 2 ** (1.0 / 3.0), 2 ** (2.0 / 3.0)])
+        # correct for ratios
+        anchors[:, 2] = np.sqrt(areas / np.repeat(self.ratios,
+                                                  len(self.scales)))
+        anchors[:, 3] = anchors[:, 2] * np.repeat(self.ratios,
+                                                  len(self.scales))
 
-    num_anchors = len(ratios) * len(scales)
+        # transform from (x_ctr, y_ctr, w, h) -> (x1, y1, x2, y2)
+        anchors[:, 0::2] -= np.tile(anchors[:, 2] * 0.5, (2, 1)).T
+        anchors[:, 1::2] -= np.tile(anchors[:, 3] * 0.5, (2, 1)).T
 
-    # initialize output anchors
-    anchors = np.zeros((num_anchors, 4))
-
-    # scale base_size
-    anchors[:, 2:] = base_size * np.tile(scales, (2, len(ratios))).T
-
-    # compute areas of anchors
-    areas = anchors[:, 2] * anchors[:, 3]
-
-    # correct for ratios
-    anchors[:, 2] = np.sqrt(areas / np.repeat(ratios, len(scales)))
-    anchors[:, 3] = anchors[:, 2] * np.repeat(ratios, len(scales))
-
-    # transform from (x_ctr, y_ctr, w, h) -> (x1, y1, x2, y2)
-    anchors[:, 0::2] -= np.tile(anchors[:, 2] * 0.5, (2, 1)).T
-    anchors[:, 1::2] -= np.tile(anchors[:, 3] * 0.5, (2, 1)).T
-
-    return anchors
+        return anchors
 
 
 def generate_ranges(anchor_number, min_length, max_length):
@@ -132,42 +126,9 @@ def shift(shape, stride, anchors):
     return all_anchors
 
 
-# debug
-def compute_shape(image_shape, pyramid_levels):
-    """Compute shapes based on pyramid levels.
-
-    :param image_shape:
-    :param pyramid_levels:
-    :return:
-    """
-    image_shape = np.array(image_shape[:2])
-    image_shapes = [(image_shape + 2 ** x - 1) // (2 ** x) for x in pyramid_levels]
-    return image_shapes
-
-
-# debug
-def anchors_for_shape(
-                    image_shape,
-                    pyramid_levels=None,
-                    ratios=None,
-                    scales=None,
-                    strides=None,
-                    sizes=None,
-                    shapes_callback=None):
-
-    image_shapes = compute_shape(image_shape, pyramid_levels)
-
-    # compute anchors over all pyramid levels
-    all_anchors = np.zeros((0, 4))
-    for idx, p in enumerate(pyramid_levels):
-        anchors = generate_anchors(base_size=sizes[idx], ratios=ratios, scales=scales)
-        shifted_anchors = shift(image_shapes[idx], strides[idx], anchors)
-        all_anchors = np.append(all_anchors, shifted_anchors, axis=0)
-
-    return all_anchors
-
-
 if __name__ == "__main__":
     anchors = Anchors()
-    temp = anchors([30, 40])
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    dtype = torch.tensor([3.]).dtype
+    temp = anchors([[30, 40], [18, 20], [3, 2], [1, 1], [1, 1]], dtype, device)
     pass

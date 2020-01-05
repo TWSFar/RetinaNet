@@ -49,7 +49,12 @@ class CIoULoss(nn.Module):
         self.reduction = reduction
         self.loss_weight = loss_weight
 
-    def forward(self, pred, target, anchor):
+    def forward(self,
+                pred,
+                target,
+                anchor=None,
+                weight=None,
+                avg_factor=None):
         """
         Args:
             pred: [N_max, 4],  4: dx, dy, dw, dh
@@ -59,23 +64,25 @@ class CIoULoss(nn.Module):
             loss
         """
         assert pred.shape[0] == target.shape[0]
-        device = pred.device
 
-        if target.shape[0] > 0:
-            variances = torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(device)
+        variances = torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(pred.device)
+
+        if anchor is None:
+            pred_box = pred
+        else:
             anchor = xyxy_2_xywh(anchor)
             pred_box = decode(pred, anchor, variances)
-            ious = bbox_iou(pred_box, target).clamp(min=self.eps)
-            loss = -ious.log()
 
-            loss = weight_reduce_loss(loss,
-                                      weight=self.loss_weight,
-                                      reduction=self.reduction)
-        else:
-            loss = torch.tensor(0).float().to(device)
+        ious = bbox_iou(pred_box, target).clamp(min=self.eps)
+        loss = -ious.log()
+
+        loss = self.loss_weight * weight_reduce_loss(
+            loss,
+            weight=weight,
+            reduction=self.reduction,
+            avg_factor=avg_factor)
 
         return loss
-
 
 if __name__ == "__main__":
     m1 = torch.tensor([[0., 0, 4, 4], [0, 0, 4, 4], [0, 0, 4, 4]])

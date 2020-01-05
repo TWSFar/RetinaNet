@@ -1,8 +1,7 @@
 import torch
 import torch.nn as nn
 from models import backbones, necks, heads, losses
-from models.utils import (Anchors, BBoxTransform,
-                          ClipBoxes, iou_cpu)
+from models.utils import (Anchors, BBoxTransform, iou_cpu)
 # debug
 # from models.losses.debug import FocalLoss
 
@@ -12,7 +11,7 @@ class RetinaNet(nn.Module):
         self.opt = opt
         self.num_classes = num_classes
         super(RetinaNet, self).__init__()
-        self.backbone = backbones.build_backbone(opt)
+        self.backbone = backbones.build_backbone(opt.backbone)
         self.neck = necks.build_neck(neck=opt.neck,
                                      in_planes=self.backbone.out_planes,
                                      out_plane=256)
@@ -25,7 +24,6 @@ class RetinaNet(nn.Module):
 
         self.anchors = Anchors()
         self.regressBoxes = BBoxTransform()
-        self.clipBoxes = ClipBoxes()
 
         self.freeze_bn()
 
@@ -49,12 +47,12 @@ class RetinaNet(nn.Module):
         features = self.neck(features)
         pred_cls = torch.cat([self.cls_head(feature) for feature in features], dim=1)
         pred_reg = torch.cat([self.reg_head(feature) for feature in features], dim=1)
-        anchors, resticts = self.anchors(img_batch.shape[2:])
-        anchors = anchors.to(device)
-        resticts = resticts.to(device)
+        featmap_sizes = [featmap.size()[-2:] for featmap in features]
+        anchors, resticts = self.anchors(
+            featmap_sizes, pred_reg.dtype, device)
 
         if self.training:
-            # return self.loss(pred_cls, pred_reg, anchors[0], annotations)
+            # return self.loss(pred_cls, pred_reg, anchors, annotations)
             loss_cls, loss_reg = [], []
 
             for bi in range(batch_size):
@@ -65,9 +63,9 @@ class RetinaNet(nn.Module):
                     loss_reg.append(tensor_zero)
                     continue
 
-                target_cls, target_bbox, pst_idx = self._encode(anchors[0],
+                target_cls, target_bbox, pst_idx = self._encode(anchors,
                                                                 annotation,
-                                                                resticts[0])
+                                                                resticts)
                 if pst_idx.sum() == 0:
                     loss_cls.append(tensor_zero)
                     loss_reg.append(tensor_zero)
@@ -76,17 +74,17 @@ class RetinaNet(nn.Module):
                 loss_cls_bi = self.cls_loss(pred_cls[bi], target_cls)
                 loss_reg_bi = self.reg_loss(pred_reg[bi, pst_idx],
                                             target_bbox,
-                                            anchors[0, pst_idx])
+                                            anchors[pst_idx])
                 loss_cls.append(loss_cls_bi.sum()/torch.clamp(pst_idx.sum().float(), min=1.0))
                 loss_reg.append(loss_reg_bi.mean())
 
-            return torch.stack(loss_cls).mean(dim=0, keepdim=True), \
-                torch.stack(loss_reg).mean(dim=0, keepdim=True)
+            return dict(
+                loss_cls=torch.stack(loss_cls).mean(),
+                loss_reg=torch.stack(loss_reg).mean()
+            )
 
         else:
             transformed_anchors = self.regressBoxes(anchors, pred_reg)
-            transformed_anchors = self.clipBoxes(transformed_anchors, img_batch)
-
             scores, class_id = torch.max(pred_cls.sigmoid(), dim=2, keepdim=True)
 
             return scores.squeeze(2), class_id.squeeze(2), transformed_anchors
