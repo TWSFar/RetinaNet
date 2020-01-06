@@ -7,13 +7,12 @@ import numpy as np
 
 # from models_demo import model_demo
 
-from configs.visdrone import opt
-# from configs.visdrone_chip import opt
-# from configs.visdrone_samples import opt
-# from configs.coco import opt
+from configs.retina_visdrone import opt
+# from configs.retina_visdrone_chip import opt
+# from configs.retina_coco import opt
 
 from dataloaders import make_data_loader
-from models import RetinaNet
+from models import Model
 from models.utils import (PostProcess, DefaultEval,
                           re_resize, parse_losses)
 from utils import TensorboardSummary, Saver, Timer
@@ -49,7 +48,7 @@ class Trainer(object):
 
         # Define Network
         # initilize the network here.
-        self.model = RetinaNet(opt, self.num_classes)
+        self.model = Model(opt, self.num_classes)
         # self.model = RetinaNet(opt, self.num_classes)
         self.model = self.model.to(opt.device)
 
@@ -100,14 +99,14 @@ class Trainer(object):
             self.model.freeze_bn()
         epoch_loss = []
         for iter_num, data in enumerate(self.train_loader):
-            # if iter_num > 3: break
+            if iter_num > 3: break
             try:
                 temp_time = time.time()
                 self.optimizer.zero_grad()
                 imgs = data['img'].to(opt.device)
                 targets = data['annot'].to(opt.device)
 
-                losses = self.model([imgs, targets])
+                losses = self.model(imgs, targets)
                 loss, log_vars = parse_losses(losses)
 
                 if bool(loss == 0):
@@ -157,7 +156,7 @@ class Trainer(object):
             results = []
             image_ids = []
             for ii, data in enumerate(self.val_loader):
-                # if ii > 0: break
+                if ii > 4: break
                 scale = data['scale']
                 index = data['index']
                 imgs = data['img'].to(opt.device).float()

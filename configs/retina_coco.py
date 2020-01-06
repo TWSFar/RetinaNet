@@ -6,8 +6,8 @@ user_dir = os.path.expanduser('~')
 
 class Config:
     # data
-    dataset = "visdrone"
-    root_dir = user_dir + "/data/Visdrone"
+    dataset = "coco"
+    root_dir = user_dir + "/data/coco"
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024
@@ -20,21 +20,25 @@ class Config:
     model = "retina"
     backbone = 'resnet50'
     neck = "fpn"
-    # loss
-    loss_cls = dict(
-        type='FocalLoss',
-        use_sigmoid=True,
-        gamma=2.0,
-        alpha=0.25,
-        reduction='mean',
-        loss_weight=1.0)
-    loss_reg = dict(
-        type='CIoULoss')
+    head = dict(
+        type="RetinaHead",
+        strides=[8, 16, 32, 64, 128],
+        loss_cls=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.25,
+            reduction='sum',
+            loss_weight=1.0),
+        loss_bbox=dict(
+            type='CIoULoss')
+    )
 
     # train
-    batch_size = 2
+    batch_size = 3
     epochs = 70
     workers = 1
+    freeze_bn = True
 
     # optimizer
     adam = True

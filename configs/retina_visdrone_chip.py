@@ -20,18 +20,19 @@ class Config:
     model = "retina"
     backbone = 'resnet50'
     neck = "fpn"
-    # loss
-    loss_cls = dict(
-        type='FocalLoss',
-        use_sigmoid=True,
-        gamma=2.0,
-        alpha=0.25,
-        reduction='sum',
-        loss_weight=1.0)
-    loss_reg = dict(
-        type='SmoothL1Loss',
-        beta=0.11,
-        loss_weight=1.0)
+    head = dict(
+        type="RetinaHead",
+        strides=[8, 16, 32, 64, 128],
+        loss_cls=dict(
+            type='FocalLoss',
+            use_sigmoid=True,
+            gamma=2.0,
+            alpha=0.25,
+            reduction='sum',
+            loss_weight=1.0),
+        loss_bbox=dict(
+            type='CIoULoss')
+    )
 
     # train
     batch_size = 4

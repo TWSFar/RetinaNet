@@ -1,5 +1,5 @@
-from .retinanet import RetinaNet
+from .model import Model
 
 __all__ = [
-    "RetinaNet",
+    "Model",
 ]

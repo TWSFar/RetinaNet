@@ -1,5 +1,11 @@
-from .retinanet_head import ClassificationModel, RegressionModel
+from .retina_head import RetinaHead
 
-__all__ = [
-    "ClassificationModel", "RegressionModel"
-]
+
+def build_head(args):
+    obj_type = args.pop('type')
+
+    if obj_type == "RetinaHead":
+        return RetinaHead(**args)
+
+    else:
+        raise NotImplementedError

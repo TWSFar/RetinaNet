@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 
-class Anchors(nn.Module):
+class Anchors(object):
     def __init__(self, pyramid_levels=[3, 4, 5, 6, 7],
                  strides=None, sizes=None, ratios=None, scales=None,
                  gt_restrict_range=[0, 64, 128, 256, 512, 99999]):
@@ -38,17 +38,23 @@ class Anchors(nn.Module):
         for size in self.sizes:
             self.anchors.append(self.generate_anchors(base_size=size))
 
-    def forward(self, featmap_sizes, dtype, device):
+    def __call__(self, featmap_sizes, dtype, device):
         """
+        Args:
+            featmap_sizes:
+                featmap sizes, according to pyramid levels order
         Return:
             anchors: [1, num, 4]  4: [x1, y1, x2, y2]
         """
+        assert len(featmap_sizes) == len(self.pyramid_levels)
 
         # compute anchors over all pyramid levels
+        # all_anchors = np.zeros((0, 4)).astype(np.float32)
+        # all_restrictions = np.zeros((0, 2)).astype(np.float32)
         all_level_anchors = []
         all_level_restrictions = []
 
-        for idx, p in enumerate(self.pyramid_levels):
+        for idx, _ in enumerate(self.pyramid_levels):
             shifted_anchors = shift(featmap_sizes[idx],
                                     self.strides[idx],
                                     self.anchors[idx])
@@ -56,6 +62,9 @@ class Anchors(nn.Module):
                                           self.gt_restrict_range[idx],
                                           self.gt_restrict_range[idx+1])
 
+            # all_anchors = np.append(all_anchors, shifted_anchors, axis=0)
+            # all_restrictions = np.append(all_restrictions,
+            #                              restriction, axis=0)
             all_level_anchors.append(torch.tensor(shifted_anchors,
                                                   dtype=dtype,
                                                   device=device))
@@ -65,6 +74,9 @@ class Anchors(nn.Module):
 
         return torch.cat(all_level_anchors), \
             torch.cat(all_level_restrictions)
+
+    def __len__(self):
+        return len(self.scales) * len(self.ratios)
 
     def generate_anchors(self, base_size=16):
         """
