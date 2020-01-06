@@ -99,7 +99,7 @@ class Trainer(object):
             self.model.freeze_bn()
         epoch_loss = []
         for iter_num, data in enumerate(self.train_loader):
-            if iter_num > 3: break
+            # if iter_num > 3: break
             try:
                 temp_time = time.time()
                 self.optimizer.zero_grad()
@@ -156,7 +156,7 @@ class Trainer(object):
             results = []
             image_ids = []
             for ii, data in enumerate(self.val_loader):
-                if ii > 4: break
+                # if ii > 4: break
                 scale = data['scale']
                 index = data['index']
                 imgs = data['img'].to(opt.device).float()
