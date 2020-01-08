@@ -28,16 +28,17 @@ class Config:
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            reduction='sum',
+            reduction='mean',
             loss_weight=1.0),
         loss_bbox=dict(
             type='CIoULoss')
     )
 
     # train
-    batch_size = 4
-    epochs = 40
+    batch_size = 6
+    epochs = 50
     workers = 1
+    freeze_bn = True
 
     # optimizer
     adam = True

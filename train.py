@@ -7,8 +7,8 @@ import numpy as np
 
 # from models_demo import model_demo
 
-from configs.retina_visdrone import opt
-# from configs.retina_visdrone_chip import opt
+# from configs.retina_visdrone import opt
+from configs.retina_visdrone_chip import opt
 # from configs.retina_coco import opt
 
 from dataloaders import make_data_loader
