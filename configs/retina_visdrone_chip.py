@@ -19,7 +19,7 @@ class Config:
     # model
     model = "retina"
     backbone = 'resnet50'
-    neck = "fpn"
+    neck = "fpn_aug_se"
     head = dict(
         type="RetinaHead",
         strides=[8, 16, 32, 64, 128],
@@ -31,7 +31,7 @@ class Config:
             reduction='mean',
             loss_weight=1.0),
         loss_bbox=dict(
-            type='CIoULoss')
+            type='IoULoss')
     )
 
     # train
