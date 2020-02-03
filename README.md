@@ -8,7 +8,7 @@
         2.5 smooth l1 loss
         2.6 focal loss
     3. 支持json标签(coco2017格式), 目前用来训练visdrone数据集
-    4. QQ: 912216756联系
+    4. QQ: 912216765联系
 
 ## train
     1. sh setup.sh
