@@ -49,7 +49,7 @@ def test(**kwargs):
     with torch.no_grad():
         for img_name in imgs_name:
             # data read and transforms
-            img_path = osp.join(test_path, img_name)
+            img_path = osp.join(opt.test_dir, img_name)
             img = cv2.imread(img_path)[:, :, ::-1]
             sample = {'img': img, 'annot': None}
             sample = normalize(sample)
