@@ -17,8 +17,8 @@ import torch
 import multiprocessing
 multiprocessing.set_start_method('spawn', True)
 
-classes = {'pedestrian', 'person', 'bicycle', 'car', 'van',
-           'truck', 'tricycle', 'awning-tricycle', 'bus', 'motor'}
+classes = ('pedestrian', 'person', 'bicycle', 'car', 'van',
+           'truck', 'tricycle', 'awning-tricycle', 'bus', 'motor')
 show = True
 
 
