@@ -8,6 +8,7 @@ class Config:
     # data
     dataset = "coco"
     root_dir = user_dir + "/data/coco"
+    test_dir = user_dir + "/data/coco/image/"
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024

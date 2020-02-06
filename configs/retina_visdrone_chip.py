@@ -8,6 +8,7 @@ class Config:
     # data
     dataset = "visdrone_chip"
     root_dir = user_dir + "/data/Visdrone/detect_voc/"
+    test_dir = user_dir + "/data/Visdrone/detect_voc/JPEGImages"
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024

@@ -5,6 +5,18 @@ import shutil
 import torch
 
 
+class MyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        else:
+            return super(MyEncoder, self).default(obj)
+
+
 class Saver(object):
 
     def __init__(self, opt, mode='train'):
@@ -42,6 +54,11 @@ class Saver(object):
     def save_eval_result(self, stats):
         with open(os.path.join(self.experiment_dir, 'result.txt'), 'a') as f:
             f.writelines(stats + '\n')
+
+    def save_test_result(self, results):
+        with open(os.path.join(self.experiment_dir, 'results.json'), "w") as f:
+            json.dump(results, f, cls=MyEncoder)
+            print("results json saved.")
 
     def backup_result(self):
         backup_root = osp.join(osp.expanduser('~'), "Cache")

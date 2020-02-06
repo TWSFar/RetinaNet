@@ -8,6 +8,7 @@ class Config:
     # data
     dataset = "visdrone"
     root_dir = user_dir + "/data/Visdrone"
+    test_dir = user_dir + "/data/Visdrone/VisDrone2019-DET-val/images"
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024
