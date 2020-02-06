@@ -1,5 +1,6 @@
 import os
 import cv2
+import fire
 import numpy as np
 import os.path as osp
 import matplotlib.pyplot as plt
