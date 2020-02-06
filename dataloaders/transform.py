@@ -109,7 +109,7 @@ class Letterbox(object):
         new_image[:H, :W, :] = image.astype(np.float32)
 
         image = torch.from_numpy(new_image)
-        annots = torch.from_numpy(annots)
+        annots = torch.from_numpy(annots) if annots
         return {'img': image, 'annot': annots, 'scale': (ratio, left, top)}
 
 
