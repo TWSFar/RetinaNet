@@ -17,6 +17,8 @@ import torch
 import multiprocessing
 multiprocessing.set_start_method('spawn', True)
 
+classes = {'pedestrian', 'person', 'bicycle', 'car', 'van',
+           'truck', 'tricycle', 'awning-tricycle', 'bus', 'motor'}
 show = True
 
 
@@ -62,7 +64,6 @@ def test(**kwargs):
                     scores, labels, boxes, img.shape[-2:])
 
             for box, label, score in zip(boxes_bt[0], labels_bt[0], scores_bt[0]):
-                print(box)
                 box[2:] = box[2:] - box[:2]
                 results.append({"image_id": img_name,
                                 "category_id": label,
@@ -76,7 +77,7 @@ def test(**kwargs):
                 scores = scores_bt[0].float().view(-1, 1)
                 output = torch.cat((boxes, labels, scores), dim=1)
                 output = output.numpy()
-                img = plot_img(img, output)
+                img = plot_img(img, output, classes)
 
                 plt.figure(figsize=(10, 10))
                 plt.subplot(1, 1, 1).imshow(img)
