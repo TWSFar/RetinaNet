@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from configs.retina_visdrone_chip import opt
 
 from models import Model
-from models.utils import PostProcess
+from models.utils import PostProcess, re_resize
 from utils import Saver, plot_img
 from dataloaders.transform import Letterbox, Normalizer
 
@@ -71,7 +71,7 @@ def test(**kwargs):
 
             if show:
                 # draw
-                boxes= boxes_bt[0] / sample['scale']
+                boxes = re_resize(boxes_bt[0], sample['scale'], opt.resize_type)
                 labels = labels_bt[0].float().view(-1, 1)
                 scores = scores_bt[0].float().view(-1, 1)
                 output = torch.cat((boxes, labels, scores), dim=1)
