@@ -51,17 +51,18 @@ class RegularResizer(object):
         image = cv2.resize(image,
                            (self.input_size[0], self.input_size[1]),
                            interpolation=cv2.INTER_LINEAR)
-        annots[:, [0, 2]] = annots[:, [0, 2]] * ratio_x
-        annots[:, [1, 3]] = annots[:, [1, 3]] * ratio_y
 
         W, H = self.input_size
         pad_w = 32 - W % 32 if W % 32 != 0 else 0
         pad_h = 32 - H % 32 if H % 32 != 0 else 0
         new_image = np.zeros((H + pad_h, W + pad_w, 3)).astype(np.float32)
         new_image[:H, :W, :] = image.astype(np.float32)
-
         image = torch.from_numpy(new_image)
-        annots = torch.from_numpy(annots)
+
+        if annots is not None:
+            annots[:, [0, 2]] = annots[:, [0, 2]] * ratio_x
+            annots[:, [1, 3]] = annots[:, [1, 3]] * ratio_y
+            annots = torch.from_numpy(annots)
 
         return {'img': image, 'annot': annots, 'scale': (ratio_x, ratio_y)}
 
@@ -96,12 +97,6 @@ class Letterbox(object):
                                    cv2.BORDER_CONSTANT)  # padded square
         image = cv2.resize(image, (self.input_size[0], self.input_size[1]))
 
-        if annots is not None and len(annots) > 0:
-            annots[:, 0] = ratio * (annots[:, 0] + left)
-            annots[:, 1] = ratio * (annots[:, 1] + top)
-            annots[:, 2] = ratio * (annots[:, 2] + left)
-            annots[:, 3] = ratio * (annots[:, 3] + top)
-
         H, W, C = image.shape
         pad_w = 32 - W % 32 if W % 32 != 0 else 0
         pad_h = 32 - H % 32 if H % 32 != 0 else 0
@@ -109,7 +104,14 @@ class Letterbox(object):
         new_image[:H, :W, :] = image.astype(np.float32)
 
         image = torch.from_numpy(new_image)
-        annots = torch.from_numpy(annots) if annots
+
+        if annots is not None and len(annots) > 0:
+            annots[:, 0] = ratio * (annots[:, 0] + left)
+            annots[:, 1] = ratio * (annots[:, 1] + top)
+            annots[:, 2] = ratio * (annots[:, 2] + left)
+            annots[:, 3] = ratio * (annots[:, 3] + top)
+            annots = torch.from_numpy(annots)
+
         return {'img': image, 'annot': annots, 'scale': (ratio, left, top)}
 
 
