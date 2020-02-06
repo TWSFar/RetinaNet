@@ -2,6 +2,7 @@ import os
 import cv2
 import fire
 import numpy as np
+from tqdm import tqdm
 import os.path as osp
 import matplotlib.pyplot as plt
 
@@ -19,7 +20,7 @@ multiprocessing.set_start_method('spawn', True)
 
 classes = ('pedestrian', 'person', 'bicycle', 'car', 'van',
            'truck', 'tricycle', 'awning-tricycle', 'bus', 'motor')
-show = True
+show = False
 
 
 def test(**kwargs):
@@ -49,7 +50,7 @@ def test(**kwargs):
     results = []
     model.eval()
     with torch.no_grad():
-        for img_name in imgs_name:
+        for img_name in tqdm(imgs_name):
             # data read and transforms
             img_path = osp.join(opt.test_dir, img_name)
             img = cv2.imread(img_path)[:, :, ::-1]
