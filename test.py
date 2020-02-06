@@ -57,7 +57,7 @@ def test(**kwargs):
             input = sample['img'].unsqueeze(0).to(opt.device).permute(0, 3, 1, 2)
 
             # predict
-            scores, labels, boxes = model(imgs)
+            scores, labels, boxes = model(input)
             scores_bt, labels_bt, boxes_bt = post_pro(
                     scores, labels, boxes, imgs.shape[-2:])
 
@@ -70,8 +70,8 @@ def test(**kwargs):
 
             if show:
                 # draw
-                boxes = boxes / sample['scale']
-                output = torch.cat((boxes, labels.float().unsqueeze(1), scores.unsqueeze(1)), dim=1)
+                boxes_src = boxes / sample['scale']
+                output = torch.cat((boxes_src, labels.float().unsqueeze(1), scores.unsqueeze(1)), dim=1)
                 output = output.cpu().numpy()
                 img = plot_img(img, output)
 
