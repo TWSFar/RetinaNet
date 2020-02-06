@@ -61,7 +61,7 @@ def test(**kwargs):
             scores_bt, labels_bt, boxes_bt = post_pro(
                     scores, labels, boxes, img.shape[-2:])
 
-            for box, label, score in zip(boxes_bt, labels_bt, scores_bt):
+            for box, label, score in zip(boxes_bt[0], labels_bt[0], scores_bt[0]):
                 print(box)
                 box[2:] = box[2:] - box[:2]
                 results.append({"image_id": img_name,
@@ -71,9 +71,11 @@ def test(**kwargs):
 
             if show:
                 # draw
-                boxes_src = boxes / sample['scale']
-                output = torch.cat((boxes_src, labels.float().unsqueeze(1), scores.unsqueeze(1)), dim=1)
-                output = output.cpu().numpy()
+                boxes= boxes_bt[0] / sample['scale']
+                labels = labels_bt[0].float().view(-1, 1)
+                scores = scores_bt[0].float().view(-1, 1)
+                output = torch.cat((boxes, labels, scores), dim=1)
+                output = output.numpy()
                 img = plot_img(img, output)
 
                 plt.figure(figsize=(10, 10))
