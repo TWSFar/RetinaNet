@@ -5,11 +5,13 @@ import numpy as np
 import os.path as osp
 import matplotlib.pyplot as plt
 
-from models import Model
-from utils import plot_img
 from configs.retina_visdrone_chip import opt
-from utils import Saver
+
+from models import Model
+from models.utils import PostProcess
+from utils import Saver, plot_img
 from dataloaders.transform import Letterbox, Normalizer
+
 import torch
 
 import multiprocessing
