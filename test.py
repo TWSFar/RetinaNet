@@ -59,7 +59,7 @@ def test(**kwargs):
             # predict
             scores, labels, boxes = model(input)
             scores_bt, labels_bt, boxes_bt = post_pro(
-                    scores, labels, boxes, imgs.shape[-2:])
+                    scores, labels, boxes, img.shape[-2:])
 
             for box, label, score in zip(boxes_bt, labels_bt, scores_bt):
                 box[2:] = box[2:] - box[:2]
