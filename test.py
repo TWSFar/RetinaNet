@@ -62,6 +62,7 @@ def test(**kwargs):
                     scores, labels, boxes, img.shape[-2:])
 
             for box, label, score in zip(boxes_bt, labels_bt, scores_bt):
+                print(box)
                 box[2:] = box[2:] - box[:2]
                 results.append({"image_id": img_name,
                                 "category_id": label,
