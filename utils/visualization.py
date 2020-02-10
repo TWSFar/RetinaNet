@@ -1,6 +1,7 @@
 import os
 import cv2
 import torch
+import numpy as np
 from torchvision.utils import make_grid
 from tensorboardX import SummaryWriter
 from dataloaders.transform import UnNormalizer
@@ -15,6 +16,8 @@ box_colors = ((0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0, 1),
 
 
 def plot_img(img, bboxes, id2name):
+    img.dtype = np.float
+    img = img / 255.0 if img.max() > 1.0 else img
     for bbox in bboxes:
         try:
             if -1 in bbox:
@@ -32,9 +35,8 @@ def plot_img(img, bboxes, id2name):
                 label = label + '|{:.2}'.format(bbox[5])
 
             # plot
-            scale = 255 if img.max() > 1 else 1
-            box_color = [i*scale for i in box_colors[min(id, len(box_colors)-1)]]
-            text_color = [i*scale for i in (1, 1, 1)]
+            box_color = box_colors[min(id, len(box_colors)-1)]
+            text_color = (1, 1, 1)
             t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)[0]
             c1 = (x1, y1 - t_size[1] - 4)
             c2 = (x1 + t_size[0], y1)
