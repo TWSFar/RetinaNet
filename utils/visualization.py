@@ -16,7 +16,6 @@ box_colors = ((0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0, 1),
 
 
 def plot_img(img, bboxes, id2name):
-    img = 
     img = img.astype(np.float64) / 255.0 if img.max() > 1.0 else img
     for bbox in bboxes:
         try:
