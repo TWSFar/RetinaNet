@@ -15,7 +15,7 @@ class Config:
     mean = [0.382, 0.383, 0.367]
     std = [0.164, 0.156, 0.164]
     resume = False
-    pre = None
+    pre = "/home/twsf/work/RetinaNet/run/retina_visdrone_chip/20200203_135838_train/model_best.pth.tar"
 
     # model
     model = "retina"

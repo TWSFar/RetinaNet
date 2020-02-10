@@ -1,9 +1,10 @@
 import os
 import json
 import time
-import os.path as osp
-import shutil
 import torch
+import shutil
+import numpy as np
+import os.path as osp
 
 
 class MyEncoder(json.JSONEncoder):

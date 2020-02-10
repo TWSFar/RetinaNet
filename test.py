@@ -20,7 +20,7 @@ multiprocessing.set_start_method('spawn', True)
 
 classes = ('pedestrian', 'person', 'bicycle', 'car', 'van',
            'truck', 'tricycle', 'awning-tricycle', 'bus', 'motor')
-show = False
+show = True
 
 
 def test(**kwargs):
@@ -50,7 +50,8 @@ def test(**kwargs):
     results = []
     model.eval()
     with torch.no_grad():
-        for img_name in tqdm(imgs_name):
+        for ii, img_name in enumerate(tqdm(imgs_name)):
+            if ii >= 3: break;
             # data read and transforms
             img_path = osp.join(opt.test_dir, img_name)
             img = cv2.imread(img_path)[:, :, ::-1]
@@ -67,9 +68,9 @@ def test(**kwargs):
             for box, label, score in zip(boxes_bt[0], labels_bt[0], scores_bt[0]):
                 box[2:] = box[2:] - box[:2]
                 results.append({"image_id": img_name,
-                                "category_id": label,
-                                "bbox": box[:4],
-                                "score": score})
+                                "category_id": label.numpy(),
+                                "bbox": box[:4].numpy(),
+                                "score": score.numpy()})
 
             if show:
                 # draw
