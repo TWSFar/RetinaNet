@@ -33,8 +33,8 @@ def plot_img(img, bboxes, id2name):
 
             # plot
             scale = 255 if img.max() > 1 else 1
-            box_color = box_colors[min(id, len(box_colors)-1)] * scale
-            text_color = (1, 1, 1) * scale
+            box_color = [i*scale for i in box_colors[min(id, len(box_colors)-1)]]
+            text_color = [i*scale for i in (1, 1, 1)]
             t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)[0]
             c1 = (x1, y1 - t_size[1] - 4)
             c2 = (x1 + t_size[0], y1)
