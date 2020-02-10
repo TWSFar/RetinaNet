@@ -32,12 +32,14 @@ def plot_img(img, bboxes, id2name):
                 label = label + '|{:.2}'.format(bbox[5])
 
             # plot
-            box_color = box_colors[min(id, len(box_colors)-1)]
+            scale = 255 if img.max() > 1 else 1
+            box_color = box_colors[min(id, len(box_colors)-1)] * scale
+            text_color = (1, 1, 1) * scale
             t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_COMPLEX, 0.4, 1)[0]
             c1 = (x1, y1 - t_size[1] - 4)
             c2 = (x1 + t_size[0], y1)
             cv2.rectangle(img, c1, c2, color=box_color, thickness=-1)
-            cv2.putText(img, label, (x1, y1-4), cv2.FONT_HERSHEY_COMPLEX, 0.4, (1, 1, 1), 1)
+            cv2.putText(img, label, (x1, y1-4), cv2.FONT_HERSHEY_COMPLEX, 0.4, text_color, 1)
             cv2.rectangle(img, (x1, y1), (x2, y2), color=box_color, thickness=2)
 
         except Exception as e:
