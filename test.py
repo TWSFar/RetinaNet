@@ -63,7 +63,21 @@ def test(**kwargs):
             # predict
             scores, labels, boxes = model(input)
             scores_bt, labels_bt, boxes_bt = post_pro(
-                    scores, labels, boxes, img.shape[-2:])
+                    scores, labels, boxes, input.shape[-2:])
+
+            boxes_bt[0] = re_resize(boxes_bt[0], sample['scale'], opt.resize_type)
+
+            if show:
+                # draw
+                labels = labels_bt[0].float().view(-1, 1)
+                scores = scores_bt[0].float().view(-1, 1)
+                output = torch.cat((boxes_bt[0], labels, scores), dim=1)
+                output = output.numpy()
+                img = plot_img(img, output, classes)
+
+                plt.figure(figsize=(10, 10))
+                plt.subplot(1, 1, 1).imshow(img)
+                plt.show()
 
             for box, label, score in zip(boxes_bt[0], labels_bt[0], scores_bt[0]):
                 box[2:] = box[2:] - box[:2]
@@ -71,19 +85,6 @@ def test(**kwargs):
                                 "category_id": label.numpy(),
                                 "bbox": box[:4].numpy(),
                                 "score": score.numpy()})
-
-            if show:
-                # draw
-                boxes = re_resize(boxes_bt[0], sample['scale'], opt.resize_type)
-                labels = labels_bt[0].float().view(-1, 1)
-                scores = scores_bt[0].float().view(-1, 1)
-                output = torch.cat((boxes, labels, scores), dim=1)
-                output = output.numpy()
-                img = plot_img(img, output, classes)
-
-                plt.figure(figsize=(10, 10))
-                plt.subplot(1, 1, 1).imshow(img)
-                plt.show()
 
         saver.save_test_result(results)
 
