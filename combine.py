@@ -44,9 +44,9 @@ def Combine():
     with open(loc_file, 'r') as f:
         chip_loc = json.load(f)
 
-    if osp.isfile(args.anno_file):
-        with open(args.anno_file, 'r') as f:
-            annos = json.load(f)
+    # if osp.isfile(args.anno_file):
+    #     with open(args.anno_file, 'r') as f:
+    #         annos = json.load(f)
 
     detecions = dict()
     for det in tqdm(results):
