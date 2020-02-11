@@ -226,7 +226,7 @@ def iou_cpu(a, b):
     return IoU
 
 
-def nms_cpu(dets, thresh):
+def nms_cpu(dets, thresh=0.5):
     x1 = dets[:, 0]
     y1 = dets[:, 1]
     x2 = dets[:, 2]

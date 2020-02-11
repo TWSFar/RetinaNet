@@ -28,7 +28,7 @@ def plot_img(img, bboxes, id2name):
             id = int(bbox[4])
             label = id2name[id]
 
-            if len(bbox) == 6:
+            if len(bbox) >= 6:
                 # if bbox[5] < 0.5:
                 #     continue
                 label = label + '|{:.2}'.format(bbox[5])

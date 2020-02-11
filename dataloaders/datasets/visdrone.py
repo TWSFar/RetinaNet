@@ -1,9 +1,9 @@
 import os
-import os.path as osp
 import cv2
 import sys
 import random
 import numpy as np
+import os.path as osp
 from pycocotools.coco import COCO
 
 import torch

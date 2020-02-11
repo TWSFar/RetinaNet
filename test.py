@@ -51,7 +51,7 @@ def test(**kwargs):
     model.eval()
     with torch.no_grad():
         for ii, img_name in enumerate(tqdm(imgs_name)):
-            if ii >= 3: break;
+            # if ii >= 3: break;
             # data read and transforms
             img_path = osp.join(opt.test_dir, img_name)
             img = cv2.imread(img_path)[:, :, ::-1]
