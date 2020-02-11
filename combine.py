@@ -18,7 +18,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description='VisDrone submit')
     parser.add_argument('--split', type=str, default='val', help='split')
     parser.add_argument('--result_file', type=str,
-                        default="/home/twsf/work/RetinaNet/run/retina_visdrone_chip/20200210_194935_test/results.json")
+                        default="/home/twsf/work/RetinaNet/run/retina_visdrone_chip/20200211_232158_test/results.json")
     parser.add_argument('--loc_dir', type=str,
                         default='/home/twsf/data/Visdrone/detect_voc/Annotations/')
     parser.add_argument('--anno_file', type=str,
