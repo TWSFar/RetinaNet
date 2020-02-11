@@ -54,11 +54,10 @@ def Combine():
         cls_id = det['category_id'] + 1
         bbox = det['bbox']
         score = det['score']
+        loc = chip_loc[img_id]
         bbox = [bbox[0] + loc[0], bbox[1] + loc[1], bbox[2], bbox[3]]
 
-        loc = chip_loc[img_id]
         img_name = '_'.join(img_id.split('_')[:-1]) + osp.splitext(img_id)[1]
-
         if img_name in detecions:
             detecions[img_name].append(bbox + [score, cls_id])
         else:
