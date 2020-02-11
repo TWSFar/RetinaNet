@@ -70,7 +70,7 @@ def Combine():
     os.mkdir(output_dir)
     for img_name, det in detecions.items():
         det = det[cnms(det)]
-        txt_name = img_name[:-4] + '.txt'
+        txt_name = osp.splitext(img_name)[0] + '.txt'
         with open(osp.join(output_dir, txt_name), 'w') as f:
             for bbox in det:
                 bbox = [str(x) for x in (list(bbox[0:5]) + [int(bbox[5])] + [-1, -1])]
