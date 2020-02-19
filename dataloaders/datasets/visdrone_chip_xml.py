@@ -40,7 +40,7 @@ class VisdroneDataset(Dataset):
 
         self.image_ids = self.load_image_set_index(set_name)
 
-        self.labels = classes
+        self.labels = self.classes
 
         self.min_size = opt.min_size
         self.max_size = opt.max_size
@@ -85,7 +85,8 @@ class VisdroneDataset(Dataset):
 
     def load_image_set_index(self, imgset):
         image_ids = []
-        image_set_file = osp.join(self.root, INSTANCES_SET.format(imgset))
+        image_set_file = osp.join(
+            self.root_dir, INSTANCES_SET.format(imgset))
         assert os.path.exists(image_set_file), \
             'Path does not exist: {}'.format(image_set_file)
         with open(image_set_file) as f:
@@ -94,7 +95,7 @@ class VisdroneDataset(Dataset):
         return image_ids
 
     def load_image_and_annot(self, index):
-        tree = ET.parse(osp.join(self.anno_dir, index+'.xml'))
+        tree = ET.parse(osp.join(self.anno_dir, '{}.xml'.format(index)))
         img_name = tree.find('filename').text
         # read img and BGR to RGB before normalize
         img_path = osp.join(self.img_dir, img_name)
