@@ -1,4 +1,5 @@
-from dataloaders.datasets import coco, visdrone, visdrone_chip
+from .datasets import (
+    coco, visdrone, visdrone_chip, visdrone_chip_xml)
 from torch.utils.data import DataLoader
 
 
@@ -54,6 +55,26 @@ def make_data_loader(opt, train=True):
 
         dataset = visdrone_chip.VisdroneDataset(opt, set_name=set_name, train=train)
         sampler = visdrone_chip.AspectRatioBasedSampler(
+            dataset,
+            batch_size=batch_size,
+            drop_last=False)
+        dataloader = DataLoader(dataset,
+                                num_workers=opt.workers,
+                                collate_fn=dataset.collater,
+                                batch_sampler=sampler)
+
+        return dataset, dataloader
+
+    elif opt.dataset in ['visdrone_chip_xml', 'VisDrone_chip_xml', 'Visdrone_chip_xml']:
+        batch_size = opt.batch_size
+
+        if train:
+            set_name = 'train'
+        else:
+            set_name = 'val'
+
+        dataset = visdrone_chip_xml.VisdroneDataset(opt, set_name=set_name, train=train)
+        sampler = visdrone_chip_xml.AspectRatioBasedSampler(
             dataset,
             batch_size=batch_size,
             drop_last=False)

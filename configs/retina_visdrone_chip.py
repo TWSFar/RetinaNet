@@ -6,7 +6,7 @@ user_dir = os.path.expanduser('~')
 
 class Config:
     # data
-    dataset = "visdrone_chip"
+    dataset = "visdrone_chip_xml"
     root_dir = user_dir + "/data/Visdrone/detect_voc/"
     test_dir = user_dir + "/data/Visdrone/detect_voc/JPEGImages"
     resize_type = "letterbox"  # [regular, irregular, letterbox]

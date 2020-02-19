@@ -4,7 +4,7 @@ import cv2
 import sys
 import random
 import numpy as np
-from pycocotools.coco import COCO
+import xml.etree.ElementTree as ET
 
 import torch
 from torch.utils.data import Dataset
@@ -13,18 +13,20 @@ from torchvision import transforms
 sys.path.insert(0, osp.join(osp.dirname(osp.abspath(__file__)), '../../'))
 from dataloaders import transform as tsf
 
-INSTANCES_SET = 'instances_{}.json'
+INSTANCES_SET = 'ImageSets/Main/{}.txt'
 IMG_ROOT = 'JPEGImages'
-ANNO_ROOT = 'annotations_json'
+ANNO_ROOT = 'Annotations'
 
 
 class VisdroneDataset(Dataset):
-    """Coco dataset."""
+    """voc dataset."""
+    classes = ('pedestrian', 'person', 'bicycle', 'car', 'van',
+               'truck', 'tricycle', 'awning-tricycle', 'bus', 'motor')
 
     def __init__(self, opt, set_name='train', train=True):
         """
         Args:
-            root_dir (string): COCO directory.
+            root_dir (string): voc directory.
             transform (callable, optional): Optional transform to be applied
                 on a sample.
         """
@@ -36,10 +38,9 @@ class VisdroneDataset(Dataset):
         self.set_name = set_name
         self.train = train
 
-        self.coco = COCO(osp.join(self.anno_dir, INSTANCES_SET.format(self.set_name)))
-        self.image_ids = self.coco.getImgIds()
+        self.image_ids = self.load_image_set_index(set_name)
 
-        self.load_classes()
+        self.labels = classes
 
         self.min_size = opt.min_size
         self.max_size = opt.max_size
@@ -68,27 +69,11 @@ class VisdroneDataset(Dataset):
         else:
             raise NotImplementedError
 
-    def load_classes(self):
-        # load class names (name -> label)
-        categories = self.coco.loadCats(self.coco.getCatIds())
-        categories.sort(key=lambda x: x['id'])
-
-        self.classes = {}
-        self.coco_labels = {}
-        self.coco_labels_inverse = {}
-        self.labels = {}
-        for i, c in enumerate(categories):
-            self.coco_labels[i] = c['id']
-            self.coco_labels_inverse[c['id']] = i
-            self.classes[c['name']] = i
-            self.labels[i] = c['name']
-
     def __len__(self):
         return len(self.image_ids)
 
     def __getitem__(self, idx):
-        img = self.load_image(idx)
-        annot = self.load_annotations(idx)
+        img, annot = self.load_image_and_annot(idx)
         sample = {'img': img, 'annot': annot}
         sample = self.transform(sample)
         sample['index'] = idx  # it is very import for val
@@ -98,50 +83,32 @@ class VisdroneDataset(Dataset):
 
         return sample
 
-    def load_image(self, image_index):
-        image_info = self.coco.loadImgs(self.image_ids[image_index])[0]
-        path = os.path.join(self.img_dir, image_info['file_name'])
+    def load_image_set_index(self, imgset):
+        image_ids = []
+        image_set_file = osp.join(self.root, INSTANCES_SET.format(imgset))
+        assert os.path.exists(image_set_file), \
+            'Path does not exist: {}'.format(image_set_file)
+        with open(image_set_file) as f:
+            for line in f.readlines():
+                image_ids.append(line.strip())
+        return image_ids
+
+    def load_image_and_annot(self, index):
+        tree = ET.parse(osp.join(self.anno_dir, index+'.xml'))
+        img_name = tree.find('filename').text
         # read img and BGR to RGB before normalize
-        img = cv2.imread(path)[:, :, ::-1]
+        img_path = osp.join(self.img_dir, img_name)
+        img = cv2.imread(img_path)[:, :, ::-1]
+
+        objs = tree.findall('object')
+        annot = np.zeros((len(objs), 5), dtype=np.float32)
+        pts = ['xmin', 'ymin', 'xmax', 'ymax']
+        for i, obj in enumerate(objs):
+            for j, key in enumerate(pts):
+                objs[i, j] = float(obj.find(key).text) - 1
+            annot[i, 4] = float(obj.find('name').text)
+
         return img.astype(np.float32)
-
-    def load_annotations(self, image_index):
-        # get ground truth annotations
-        annotations_ids = self.coco.getAnnIds(imgIds=self.image_ids[image_index], iscrowd=False)
-        annotations = np.zeros((0, 5))
-
-        # some images appear to miss annotations (like image with id 257034)
-        if len(annotations_ids) == 0:
-            return annotations
-
-        # parse annotations
-        coco_annotations = self.coco.loadAnns(annotations_ids)
-        for idx, a in enumerate(coco_annotations):
-
-            # some annotations have basically no width / height, skip them
-            if a['bbox'][2] < 1 or a['bbox'][3] < 1:
-                continue
-
-            annotation = np.zeros((1, 5))
-            annotation[0, :4] = a['bbox']
-            annotation[0, 4] = self.coco_label_to_label(a['category_id'])
-            annotations = np.append(annotations, annotation, axis=0)
-
-        # transform from [x, y, w, h] to [x1, y1, x2, y2]
-        annotations[:, 2] = annotations[:, 0] + annotations[:, 2]
-        annotations[:, 3] = annotations[:, 1] + annotations[:, 3]
-
-        return annotations
-
-    def coco_label_to_label(self, coco_label):
-        return self.coco_labels_inverse[coco_label]
-
-    def label_to_coco_label(self, label):
-        return self.coco_labels[label]
-
-    def image_aspect_ratio(self, image_index):
-        image = self.coco.loadImgs(self.image_ids[image_index])[0]
-        return float(image['width']) / float(image['height'])
 
     @property
     def num_classes(self):
@@ -205,7 +172,6 @@ class AspectRatioBasedSampler(Sampler):
     def group_images(self):
         # determine the order of the images
         order = list(range(len(self.data_source)))
-        order.sort(key=lambda x: self.data_source.image_aspect_ratio(x))
 
         # divide into groups, one group = one batch
         return [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
