@@ -95,7 +95,7 @@ class VisdroneDataset(Dataset):
         return image_ids
 
     def load_image_and_annot(self, index):
-        anno_file = osp.join(self.anno_dir, self.image_ids(index)+'{}.xml')
+        anno_file = osp.join(self.anno_dir, self.image_ids[index]+'.xml')
         tree = ET.parse(anno_file)
         img_name = tree.find('filename').text
         # read img and BGR to RGB before normalize
@@ -107,10 +107,11 @@ class VisdroneDataset(Dataset):
         pts = ['xmin', 'ymin', 'xmax', 'ymax']
         for i, obj in enumerate(objs):
             for j, key in enumerate(pts):
-                objs[i, j] = float(obj.find(key).text) - 1
+                bbox = obj.find('bndbox')
+                annot[i, j] = float(bbox.find(key).text) - 1
             annot[i, 4] = float(obj.find('name').text)
 
-        return img.astype(np.float32)
+        return img.astype(np.float32), annot
 
     @property
     def num_classes(self):
