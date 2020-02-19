@@ -95,7 +95,8 @@ class VisdroneDataset(Dataset):
         return image_ids
 
     def load_image_and_annot(self, index):
-        tree = ET.parse(osp.join(self.anno_dir, '{}.xml'.format(index)))
+        anno_file = osp.join(self.anno_dir, self.image_ids(index)+'{}.xml')
+        tree = ET.parse(anno_file)
         img_name = tree.find('filename').text
         # read img and BGR to RGB before normalize
         img_path = osp.join(self.img_dir, img_name)
