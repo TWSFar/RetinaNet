@@ -63,7 +63,7 @@ class Saver(object):
             print("results json saved.")
 
     def backup_result(self):
-        backup_root = osp.join(osp.expanduser('~'), "Cache")
+        backup_root = osp.join(osp.expanduser('~'), "cache")
         if not osp.exists(backup_root):
             os.mkdir(backup_root)
         backup_dir = osp.join(backup_root, self.experiment_name)
