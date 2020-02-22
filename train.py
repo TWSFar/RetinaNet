@@ -98,10 +98,10 @@ class Trainer(object):
         else:
             self.model.freeze_bn()
         epoch_loss = []
+        last_time = time.time()
         for iter_num, data in enumerate(self.train_loader):
             # if iter_num > 3: break
             try:
-                temp_time = time.time()
                 self.optimizer.zero_grad()
                 imgs = data['img'].to(opt.device)
                 targets = data['annot'].to(opt.device)
@@ -126,12 +126,13 @@ class Trainer(object):
                                            _value,
                                            global_step)
 
-                batch_time = time.time() - temp_time
+                batch_time = time.time() - last_time
+                last_time = time.time()
                 eta = self.timer.eta(global_step, batch_time)
                 self.step_time.append(batch_time)
                 if global_step % opt.print_freq == 0:
                     printline = ("Epoch: [{}][{}/{}]  "
-                                 "lr: {}  eta: {}  time: {:1.3f}  "
+                                 "lr: {}  eta: {}  time: {:1.1f}  "
                                  "{}"
                                  "Running loss: {:1.5f}").format(
                                     epoch, iter_num + 1, self.nbatch_train,
