@@ -67,8 +67,8 @@ def Combine():
     if osp.exists(output_dir):
         shutil.rmtree(output_dir)
     os.mkdir(output_dir)
-    for img_name, det in detecions.items():
-        det = det[cnms(det)]
+    for img_name, det in tqdm(detecions.items()):
+        det = cnms(det)
         txt_name = osp.splitext(img_name)[0] + '.txt'
         with open(osp.join(output_dir, txt_name), 'w') as f:
             for bbox in det:
@@ -79,6 +79,7 @@ def Combine():
             img_path = osp.join(args.img_dir, img_name)
             img = cv2.imread(img_path)[:, :, ::-1]
             bboxes = det[:, [0, 1, 2, 3, 5, 4]]
+            bboxes[:, 4] -= 1
             bboxes[:, 2:4] = bboxes[:, :2] + bboxes[:, 2:4]
             img = plot_img(img, bboxes, classes)
 

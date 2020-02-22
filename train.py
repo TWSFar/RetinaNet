@@ -159,7 +159,7 @@ class Trainer(object):
                 # if ii > 4: break
                 scale = data['scale']
                 index = data['index']
-                imgs = data['img'].to(opt.device).float()
+                imgs = data['img'].to(opt.device)
                 targets = data['annot']
 
                 # run network
