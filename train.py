@@ -61,10 +61,6 @@ class Trainer(object):
         else:
             self.optimizer = optim.SGD(self.model.parameters(), lr=opt.lr, momentum=opt.momentum, weight_decay=opt.decay)
 
-        # Define lr scherduler
-        self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
-            self.optimizer, patience=3, verbose=True)
-
         # Resuming Checkpoint
         self.best_pred = 0.0
         self.start_epoch = 0
@@ -80,6 +76,15 @@ class Trainer(object):
                       .format(opt.pre, checkpoint['epoch']))
             else:
                 print("=> no checkpoint found at '{}'".format(opt.pre))
+
+        # Define lr scherduler
+        # self.scheduler = optim.lr_scheduler.ReduceLROnPlateau(
+        #     self.optimizer, patience=3, verbose=True)
+        self.scheduler = optim.lr_scheduler.MultiStepLR(
+            self.optimizer,
+            milestones=[round(opt.epochs * x) for x in opt.steps],
+            gamma=opt.gamma)
+        self.scheduler.last_epoch = self.start_epoch - 1
 
         # Using mul gpu
         if len(opt.gpu_id) > 1:
@@ -147,7 +152,8 @@ class Trainer(object):
                 print(e)
                 continue
 
-        self.scheduler.step(np.mean(epoch_loss))
+        # self.scheduler.step(np.mean(epoch_loss))
+        self.scheduler.step()
 
     def validate(self, epoch):
         self.model.eval()
