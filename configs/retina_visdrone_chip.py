@@ -36,7 +36,7 @@ class Config:
     )
 
     # train
-    batch_size = 3
+    batch_size = 6
     epochs = 50
     workers = 1
     freeze_bn = True

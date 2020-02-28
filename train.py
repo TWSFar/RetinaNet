@@ -333,6 +333,7 @@ def train(**kwargs):
             }, is_best)
 
     all_time = trainer.timer.second2hour(time.time()-start_time)
+    print("experiment: " + trainer.saver.experiment_name)
     print("Train done!, Sum time: {}, Best result: {}".format(all_time, trainer.best_pred))
 
     # cache result
