@@ -226,9 +226,9 @@ class Trainer(object):
                                 # append detection to results
                                 results.append(image_result)
 
-                # append image to list of processed images
-                for idx in index:
-                    image_ids.append(self.val_dataset.image_ids[idx])
+                    # append image to list of processed images
+                    for idx in index:
+                        image_ids.append(self.val_dataset.image_ids[idx])
 
                 # print progress
                 print('{}/{}'.format(ii, len(self.val_loader)), end='\r')
@@ -249,7 +249,7 @@ class Trainer(object):
                     self.writer.add_scalar('val/{}'.format(title), xi, epoch)
 
                 # Print and Write results
-                title = ('%10s' * 7) % ('epoch: [{}]'.format(epoch), 'Class', 'Targets', 'P', 'R', 'mAP', 'F1')
+                title = ('%10s' * 7) % ('Epoch: [{}]'.format(epoch), 'Class', 'Targets', 'P', 'R', 'mAP', 'F1')
                 print(title)
                 self.saver.save_eval_result(stats=title)
                 printline = '%20s' + '%10.3g' * 5
