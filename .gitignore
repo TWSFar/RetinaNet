@@ -8,6 +8,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+DET_results-*/
 run/
 .debug.py
 models_demo/

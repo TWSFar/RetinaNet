@@ -31,6 +31,7 @@ def test(**kwargs):
     imgs_set = opt.root_dir + "ImageSets/Main/val.txt"
     with open(imgs_set, 'r') as f:
         imgs_name = [x.strip()+'.jpg' for x in f.readlines()]
+
     resize = Letterbox(input_size=(opt.min_size, opt.max_size))
     normalize = Normalizer(mean=opt.mean, std=opt.std)
 
