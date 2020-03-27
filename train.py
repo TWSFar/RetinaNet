@@ -31,6 +31,7 @@ class Trainer(object):
     def __init__(self, mode):
         # Define Saver
         self.saver = Saver(opt, mode)
+        self.logger = self.saver.logger
 
         # visualize
         self.summary = TensorboardSummary(self.saver.experiment_dir, opt)
@@ -88,7 +89,7 @@ class Trainer(object):
 
         # Using mul gpu
         if len(opt.gpu_id) > 1:
-            print("Using multiple gpu")
+            self.logger.info("Using multiple gpu")
             self.model = torch.nn.DataParallel(self.model,
                                                device_ids=opt.gpu_id)
 
@@ -145,8 +146,7 @@ class Trainer(object):
                                     eta, np.sum(self.step_time),
                                     loss_logs,
                                     np.mean(self.loss_hist))
-                    print(printline)
-                    self.saver.save_experiment_log(printline)
+                    self.logger.info(printline)
 
             except Exception as e:
                 print(e)
@@ -250,17 +250,15 @@ class Trainer(object):
 
                 # Print and Write results
                 title = ('%10s' * 7) % ('Epoch: [{}]'.format(epoch), 'Class', 'Targets', 'P', 'R', 'mAP', 'F1')
-                print(title)
-                self.saver.save_eval_result(stats=title)
+                self.logger.info(title)
                 printline = '%20s' + '%10.3g' * 5
                 pf = printline % ('all', nt.sum(), mp, mr, map, mf1)  # print format
-                print(pf)
+                self.logger.info(pf)
                 self.saver.save_eval_result(stats=pf)
                 if self.num_classes > 1 and len(stats):
                     for i, c in enumerate(ap_class):
                         pf = printline % (self.val_dataset.labels[c], nt[c], p[i], r[i], ap[i], f1[i])
-                        print(pf)
-                        self.saver.save_eval_result(stats=pf)
+                        self.logger.info(pf)
 
                 return map
 
@@ -310,7 +308,7 @@ def train(**kwargs):
     opt._parse(kwargs)
     trainer = Trainer("train")
 
-    print('Num training images: {}'.format(len(trainer.train_dataset)))
+    trainer.logger.info('Num training images: {}'.format(len(trainer.train_dataset)))
 
     for epoch in range(trainer.start_epoch, opt.epochs):
         # train
@@ -333,8 +331,8 @@ def train(**kwargs):
             }, is_best)
 
     all_time = trainer.timer.second2hour(time.time()-start_time)
-    print("experiment: " + trainer.saver.experiment_name)
-    print("Train done!, Sum time: {}, Best result: {}".format(all_time, trainer.best_pred))
+    trainer.logger.info("experiment: " + trainer.saver.experiment_name)
+    trainer.logger.info("Train done!, Sum time: {}, Best result: {}".format(all_time, trainer.best_pred))
 
     # cache result
     print("Backup result...")

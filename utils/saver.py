@@ -3,6 +3,7 @@ import json
 import time
 import torch
 import shutil
+import logging
 import numpy as np
 import os.path as osp
 
@@ -26,14 +27,21 @@ class Saver(object):
         self.directory = osp.join('run', opt.model + '_' + opt.dataset)
         self.experiment_name = time.strftime("%Y%m%d_%H%M%S") + '_' + mode
         self.experiment_dir = osp.join(self.directory, self.experiment_name)
-        self.logfile = osp.join(self.experiment_dir, 'experiment.log')
+        self.logfile = osp.join(self.experiment_dir, 'train.log')
         if not osp.exists(self.experiment_dir):
             os.makedirs(self.experiment_dir)
+        logging.basicConfig(
+                    format='[%(asctime)s %(levelname)s] - %(message)s',
+                    datefmt='%Y/%m/%d %H:%M:%S',
+                    level=logging.DEBUG)
+        f_handler = logging.FileHandler(self.logfile, mode='a')
+        self.logger = logging.getLogger(__name__)
+        self.logger.addHandler(f_handler)
         for key, val in self.opt._state_dict().items():
             line = key + ': ' + str(val)
             self.save_experiment_log(line)
 
-    def save_checkpoint(self, state, is_best, filename='checkpoint.path.tar'):
+    def save_checkpoint(self, state, is_best, filename='last.path'):
         ''' Saver checkpoint to disk '''
         filename = os.path.join(self.experiment_dir, filename)
         torch.save(state, filename)
@@ -41,21 +49,13 @@ class Saver(object):
             best_pred = state['best_pred']
             with open(osp.join(self.experiment_dir, 'best_pred.txt'), 'w') as f:
                 f.write('epoch {}: {}'.format(state['epoch'], best_pred))
-            shutil.copyfile(filename, os.path.join(self.experiment_dir, 'model_best.pth.tar'))
-
-    def save_experiment_log(self, line):
-        with open(self.logfile, 'a') as f:
-            f.write(line + '\n')
+            shutil.copyfile(filename, os.path.join(self.experiment_dir, 'model_best.pth'))
 
     def save_coco_eval_result(self, epoch, stats):
         with open(os.path.join(self.experiment_dir, 'result.txt'), 'a') as f:
             f.writelines(
                 "[epoch: {}, AP@50:95: {:.3%}, AP@50: {:.3%}]\n".format(
                     epoch, stats[0], stats[1]))
-
-    def save_eval_result(self, stats):
-        with open(os.path.join(self.experiment_dir, 'result.txt'), 'a') as f:
-            f.writelines(stats + '\n')
 
     def save_test_result(self, results):
         with open(os.path.join(self.experiment_dir, 'results.json'), "w") as f:
