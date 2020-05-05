@@ -97,7 +97,7 @@ class Trainer(object):
         epoch_loss = []
         last_time = time.time()
         for iter_num, data in enumerate(self.train_loader):
-            # if iter_num >= 0: break
+            if iter_num >= 0: break
             try:
                 self.optimizer.zero_grad()
                 inputs = data['img'].to(opt.device)
@@ -194,7 +194,7 @@ class Trainer(object):
                         pre_labs = labels_bt[jj]
 
                         if pre_bboxes.shape[0] > 0:
-                            re_resize(pre_bboxes, scale[jj], opt.resize_type)
+                            pre_bboxes = re_resize(pre_bboxes, scale[jj], opt.resize_type)
 
                             # change to (x, y, w, h) (MS COCO standard)
                             pre_bboxes[:, 2] -= pre_bboxes[:, 0]

@@ -68,7 +68,10 @@ class Saver(object):
             os.mkdir(backup_root)
         backup_dir = osp.join(backup_root, self.experiment_name)
         assert not osp.exists(backup_dir), "experiment has already backup"
-        os.mkdir(backup_dir)
+        try:
+            os.mkdir(backup_dir)
+        except:
+            pass
         for file in os.listdir(self.experiment_dir):
             source_file = osp.join(self.experiment_dir, file)
             if osp.isfile(source_file):

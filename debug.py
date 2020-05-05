@@ -1,45 +1,38 @@
-import torch.nn as nn
-import torch.nn.functional as F
+def show_image(img, label):
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(10, 10))
+    plt.subplot(1, 1, 1).imshow(img)
+    plt.plot(label[:, [0, 2, 2, 0, 0]].T, label[:, [1, 1, 3, 3, 1]].T, '-')
+    plt.savefig('test.png')
+    plt.close()
+    pass
 
+import mmcv
+import cv2
+filename = '00344343.png'
+import time
+temp = time.time()
+for i in range(10000):
+    img2 = cv2.imread(filename)
+temp1 = time.time()
+print(temp1 - temp)
 
-def py_sigmoid_focal_loss(pred,
-                          target,
-                          weight=None,
-                          gamma=2.0,
-                          alpha=0.25,
-                          reduction='mean',
-                          avg_factor=None):
-    pred_sigmoid = pred.sigmoid()
-    target = target.type_as(pred)
-    pt = (1 - pred_sigmoid) * target + pred_sigmoid * (1 - target)
-    focal_weight = (alpha * target + (1 - alpha) *
-                    (1 - target)) * pt.pow(gamma)
-    loss = F.binary_cross_entropy_with_logits(
-        pred, target) * focal_weight 
-    return loss.mean()
+for i in range(10000):
+    img = mmcv.imread(filename)
 
-def focal_loss(x, y):
-    '''Focal loss.
-    Args:
-        x: (tensor) sized [N,D].
-        y: (tensor) sized [N,].
-    Return:
-        (tensor) focal loss.
-    '''
-    alpha = 0.25
-    gamma = 2
-    t = y
-    p = x.sigmoid()
-    pt = p*t + (1-p)*(1-t)         # pt = p if t > 0 else 1-p
-    w = alpha*t + (1-alpha)*(1-t)  # w = alpha if t > 0 else 1-alpha
-    w = w * (1-pt).pow(gamma)
-    return F.binary_cross_entropy_with_logits(x, t, w)
-
-
-
-import torch
-pred = torch.tensor([[0.5, 0.7], [0.3, 0.9]])
-target = torch.tensor([[0.0, 1], [0, 1]])
-res1 = py_sigmoid_focal_loss(pred, target)
-res2 = focal_loss(pred, target)
+temp = time.time()-temp1
+print(temp)
 pass
+
+# import matplotlib.pyplot as plt
+# mean=[0.382, 0.383, 0.367]
+# std=[0.164, 0.156, 0.164]
+# img2 = self.val_dataset.load_image(index[0]) / 255
+# img = inputs[0].cpu().permute(1, 2, 0).numpy() * np.array(std) + np.array(mean)
+# label = boxes_bt[0].numpy()
+# plt.figure(figsize=(10, 10))
+# plt.subplot(1, 1, 1).imshow(img)
+# plt.plot(label[:, [0, 2, 2, 0, 0]].T, label[:, [1, 1, 3, 3, 1]].T, '-')
+# plt.savefig('test.png')
+# plt.close()
+# pass

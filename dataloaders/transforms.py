@@ -1,4 +1,5 @@
 import cv2
+import mmcv
 import random
 import numpy as np
 import torch
@@ -7,40 +8,20 @@ from torchvision.transforms import ColorJitter
 
 
 # ------Scale change------
-class IrRegularResizer(object):
-    """Convert ndarrays in sample to Tensors."""
+class Resizer(object):
     def __init__(self, input_size):
-        self.min_side = min(input_size)
-        self.max_side = max(input_size)
+        self.input_size = input_size
 
     def __call__(self, sample):
         image, annots = sample['img'], sample['annot']
-        H, W, _ = image.shape
-        smallest_side = min(H, W)
-        largest_side = max(H, W)
+        input_0 = (self.input_size[0] // 32 + 1) * 32
+        input_1 = (self.input_size[1] // 32 + 1) * 32
+        image, scale_factor = mmcv.imrescale(image, (input_0, input_1), return_scale=True)
 
-        # rescale the image so the smallest side is min_side
-        scale = self.min_side / smallest_side
-        if largest_side * scale > self.max_side:
-            scale = self.max_side / largest_side
+        if annots is not None:
+            annots[:, :4] = annots[:, :4] * scale_factor
 
-        # resize the image with the computed scale
-        new_size = (int(round(W*scale)), int(round((H*scale))))
-        image = cv2.resize(image, new_size, interpolation=cv2.INTER_LINEAR)
-
-        H, W, C = image.shape
-        pad_w = 32 - W % 32 if W % 32 != 0 else 0
-        pad_h = 32 - H % 32 if H % 32 != 0 else 0
-
-        new_image = np.zeros((H + pad_h, W + pad_w, C)).astype(np.float32)
-        new_image[:H, :W, :] = image.astype(np.float32)
-
-        try:
-            annots[:, :4] = annots[:, :4] * scale
-        except:
-            annots = np.array([])
-
-        return {'img': new_image, 'annot': annots, 'scale': scale}
+        return {'img': image, 'annot': annots, 'scale': scale_factor}
 
 
 class Letterbox(object):
@@ -87,6 +68,73 @@ class Letterbox(object):
             annots[:, 3] = ratio * (annots[:, 3] + top)
 
         return {'img': new_image, 'annot': annots, 'scale': (ratio, left, top)}
+
+
+class RandomCrop(object):
+    """Random crop the image & bboxes & masks.
+
+    Args:
+        crop_size (tuple): Expected size after cropping, (h, w).
+    """
+
+    def __init__(self, crop_size):
+        self.crop_size = crop_size
+
+    def __call__(self, results):
+        img = results['img']
+        margin_h = max(img.shape[0] - self.crop_size[0], 0)
+        margin_w = max(img.shape[1] - self.crop_size[1], 0)
+        offset_h = np.random.randint(0, margin_h + 1)
+        offset_w = np.random.randint(0, margin_w + 1)
+        crop_y1, crop_y2 = offset_h, offset_h + self.crop_size[0]
+        crop_x1, crop_x2 = offset_w, offset_w + self.crop_size[1]
+
+        # crop the image
+        img = img[crop_y1:crop_y2, crop_x1:crop_x2, ...]
+        img_shape = img.shape
+        results['img'] = img
+        results['img_shape'] = img_shape
+
+        # crop bboxes accordingly and clip to the image boundary
+        for key in results.get('bbox_fields', []):
+            bbox_offset = np.array([offset_w, offset_h, offset_w, offset_h],
+                                   dtype=np.float32)
+            bboxes = results[key] - bbox_offset
+            bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_shape[1] - 1)
+            bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_shape[0] - 1)
+            results[key] = bboxes
+
+        # crop semantic seg
+        for key in results.get('seg_fields', []):
+            results[key] = results[key][crop_y1:crop_y2, crop_x1:crop_x2]
+
+        # filter out the gt bboxes that are completely cropped
+        if 'gt_bboxes' in results:
+            gt_bboxes = results['gt_bboxes']
+            valid_inds = (gt_bboxes[:, 2] > gt_bboxes[:, 0]) & (
+                gt_bboxes[:, 3] > gt_bboxes[:, 1])
+            # if no gt bbox remains after cropping, just skip this image
+            if not np.any(valid_inds):
+                return None
+            results['gt_bboxes'] = gt_bboxes[valid_inds, :]
+            if 'gt_labels' in results:
+                results['gt_labels'] = results['gt_labels'][valid_inds]
+
+            # filter and crop the masks
+            if 'gt_masks' in results:
+                valid_gt_masks = []
+                for i in np.where(valid_inds)[0]:
+                    gt_mask = results['gt_masks'][i][crop_y1:crop_y2,
+                                                     crop_x1:crop_x2]
+                    valid_gt_masks.append(gt_mask)
+
+                if valid_gt_masks:
+                    results['gt_masks'] = np.stack(valid_gt_masks)
+                else:
+                    results['gt_masks'] = np.empty(
+                        (0, ) + results['img_shape'], dtype=np.uint8)
+
+        return results
 
 
 # ------Light changes------
@@ -184,11 +232,25 @@ class ToTensor(object):
         return sample
 
 
+def show_image(img, label):
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(10, 10))
+    plt.subplot(1, 1, 1).imshow(img)
+    plt.plot(label[:, [0, 2, 2, 0, 0]].T, label[:, [1, 1, 3, 3, 1]].T, '-')
+    plt.savefig('test.png')
+    plt.close()
+    pass
+
+
 if __name__ == "__main__":
     model = Normalizer()
-    tsf = [RandomColorJeter(), RandomGaussianBlur(), Letterbox(), RandomHorizontalFlip(), Normalizer(), ToTensor()]
-    img = np.random.rand(30, 30, 3)
-    sample = {"img": img, "annot": None}
+    import cv2
+    img = cv2.imread('/home/twsf/work/RetinaNet/test.png')
+    label = np.array([[0, 0, 100, 100]])
+    tsf = [Resizer((1000, 600)), RandomGaussianBlur(), Letterbox(), RandomHorizontalFlip(), Normalizer(), ToTensor()]
+    sample = {"img": img, "annot": label}
+    show_image(img, label)
     for t in tsf:
         sample = t(sample)
+        show_image(img, label)
     pass
