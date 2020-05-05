@@ -97,7 +97,7 @@ class Trainer(object):
         epoch_loss = []
         last_time = time.time()
         for iter_num, data in enumerate(self.train_loader):
-            if iter_num >= 0: break
+            # if iter_num >= 0: break
             try:
                 self.optimizer.zero_grad()
                 inputs = data['img'].to(opt.device)
@@ -175,7 +175,7 @@ class Trainer(object):
                         dim=1))
 
                 # statistics
-                if opt.eval_type == "default":
+                if opt.eval_type == "voceval":
                     def_eval.statistics(outputs, targets, iou_thresh=0.5)
 
                 # visualize
@@ -223,7 +223,7 @@ class Trainer(object):
                 # print progress
                 print('{}/{}'.format(ii, len(self.val_loader)), end='\r')
 
-            if opt.eval_type == "default":
+            if opt.eval_type == "voceval":
                 # Compute statistics
                 stats = [np.concatenate(x, 0) for x in list(zip(*def_eval.stats))]
                 # number of targets per class

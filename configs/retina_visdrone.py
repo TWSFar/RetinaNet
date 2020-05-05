@@ -13,13 +13,13 @@ class Config:
     min_size = 1000
     max_size = 600
     norm_cfg = dict(mean=[0.382, 0.383, 0.367], std=[0.164, 0.156, 0.164])
-    resume = True
-    pre = '/home/twsf/work/RetinaNet/run/retina_visdrone_chip/20200203_135838_train/model_best.pth.tar'
+    resume = False
+    pre = None
 
     # model
     model = "retina"
     backbone = 'resnet50'
-    neck = "fpn_aug_se"
+    neck = "fpn"
     head = dict(
         type="RetinaHead",
         strides=[8, 16, 32, 64, 128],
@@ -31,12 +31,12 @@ class Config:
             reduction='mean',
             loss_weight=1.0),
         loss_bbox=dict(
-            type='SmoothL1Loss', beta=1)
+            type='SmoothL1Loss', beta=0.11)
     )
 
     # train
-    batch_size = 2
-    epochs = 70
+    batch_size = 4
+    epochs = 50
     workers = 1
     freeze_bn = False
 
@@ -45,17 +45,17 @@ class Config:
     lr = 0.001
     momentum = 0.9
     decay = 0.0001
-    steps = [0.8, 0.9]
+    steps = [0.7, 0.9]
     gamma = 0.3
     grad_clip = 35
 
     # eval
-    eval_type = "cocoeval"  # [cocoeval, default]
+    eval_type = "cocoeval"  # [cocoeval, voceval]
     nms = dict(
         type="GreedyNms",  # SoftNms
-        pst_thd=0.2,
+        pst_thd=0.05,
         nms_thd=0.5,
-        n_pre_nms=20000
+        n_pre_nms=4000
     )
 
     # visual
