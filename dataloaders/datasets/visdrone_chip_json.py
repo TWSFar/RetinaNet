@@ -11,15 +11,17 @@ from torch.utils.data import Dataset
 from torch.utils.data.sampler import Sampler
 from torchvision import transforms
 sys.path.insert(0, osp.join(osp.dirname(osp.abspath(__file__)), '../../'))
-from dataloaders import transform as tsf
+from dataloaders import transforms as tsf
 
 INSTANCES_SET = 'instances_{}.json'
+IMG_ROOT = 'JPEGImages'
+ANNO_ROOT = 'annotations_json'
 
 
-class CocoDataset(Dataset):
+class VisdroneDataset(Dataset):
     """Coco dataset."""
 
-    def __init__(self, opt, set_name='train2017', train=True):
+    def __init__(self, opt, set_name='train', train=True):
         """
         Args:
             root_dir (string): COCO directory.
@@ -28,7 +30,9 @@ class CocoDataset(Dataset):
         """
         # self.opt = opt
         self.root_dir = opt.root_dir
-        self.anno_dir = osp.join(self.root_dir, 'annotations')
+
+        self.anno_dir = osp.join(self.root_dir, ANNO_ROOT)
+        self.img_dir = osp.join(self.root_dir, IMG_ROOT)
         self.set_name = set_name
         self.train = train
 
@@ -41,22 +45,25 @@ class CocoDataset(Dataset):
         self.max_size = opt.max_size
         self.input_size = (self.min_size, self.max_size)
         self.resize = self.resizes(opt.resize_type)
-        self.train_tsf = transforms.Compose([
-            tsf.Normalizer(),
-            tsf.Augmenter(),
-            self.resize
-        ])
 
-        self.test_tsf = transforms.Compose([
-            tsf.Normalizer(),
-            self.resize
-        ])
+        if self.train:
+            self.transform = transforms.Compose([
+                tsf.RandomColorJeter(0.3, 0.3, 0.3, 0.3),
+                tsf.RandomGaussianBlur(),
+                self.resize,
+                tsf.Normalizer(**opt.norm_cfg),
+                tsf.ToTensor()
+            ])
+        else:
+            self.transform = transforms.Compose([
+                self.resize,
+                tsf.Normalizer(**opt.norm_cfg),
+                tsf.ToTensor()
+            ])
 
     def resizes(self, resize_type):
         if resize_type == 'irregular':
-            return tsf.IrRegularResizer(self.min_size, self.max_size)
-        elif resize_type == 'regular':
-            return tsf.RegularResizer(self.input_size)
+            return tsf.IrRegularResizer(self.input_size)
         elif resize_type == "letterbox":
             return tsf.Letterbox(self.input_size, train=self.train)
         else:
@@ -84,17 +91,17 @@ class CocoDataset(Dataset):
         img = self.load_image(idx)
         annot = self.load_annotations(idx)
         sample = {'img': img, 'annot': annot}
-        if self.train:
-            sample = self.train_tsf(sample)
-        else:
-            sample = self.test_tsf(sample)
+        sample = self.transform(sample)
         sample['index'] = idx  # it is very import for val
+
+        # show image and labels
+        # show_image(sample['img'].numpy(), sample['annot'].numpy())
 
         return sample
 
     def load_image(self, image_index):
         image_info = self.coco.loadImgs(self.image_ids[image_index])[0]
-        path = os.path.join(self.root_dir, self.set_name, image_info['file_name'])
+        path = os.path.join(self.img_dir, image_info['file_name'])
         # read img and BGR to RGB before normalize
         img = cv2.imread(path)[:, :, ::-1]
         return img.astype(np.float32)
@@ -139,22 +146,7 @@ class CocoDataset(Dataset):
 
     @property
     def num_classes(self):
-        return 80
-
-    """
-    @staticmethod
-    def collate_fn(batch):
-        images, targets, scale = list(zip(*batch))
-
-        if len(images) > 1:
-            gt = []
-            for i, l in enumerate(targets):
-                id = torch.tensor([[i]], dtype=torch.double).repeat(len(l), 1)
-                gt.extend(torch.cat((l, id), 1).tolist())
-            return torch.stack(images, 0), torch.tensor(gt), scale
-
-        return images, torch.stack(targets, 0), scale
-    """
+        return 10
 
     @staticmethod
     def collater(data):
@@ -229,19 +221,13 @@ def show_image(img, labels):
     pass
 
 
-if __name__ == '__main__':
-    from easydict import EasyDict
-    from torch.utils.data import DataLoader
-    opt = EasyDict()
-    opt.root_dir = '/home/twsf/work/RetinaNet/data/COCO'
-    opt.batch_size = 2
-    opt.input_size = (846, 608)
-    opt.min_side = 608
-    opt.max_size = 1024
-    dataset = CocoDataset(opt)
-    print(dataset.labels)
-    sample = dataset.__getitem__(0)
-    sampler = AspectRatioBasedSampler(dataset, batch_size=2, drop_last=False)
-    dl = DataLoader(dataset, batch_sampler=sampler, collate_fn=dataset.collater)
-    for i, sp in enumerate(dl):
-        pass
+# if __name__ == '__main__':
+#     from torch.utils.data import DataLoader
+#     from configs.visdrone_chip import opt
+#     dataset = VisdroneDataset(opt)
+#     print(dataset.labels)
+#     sample = dataset.__getitem__(0)
+#     sampler = AspectRatioBasedSampler(dataset, batch_size=2, drop_last=False)
+#     dl = DataLoader(dataset, batch_sampler=sampler, collate_fn=dataset.collater)
+#     for i, sp in enumerate(dl):
+#         pass

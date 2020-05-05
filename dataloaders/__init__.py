@@ -1,31 +1,10 @@
 from .datasets import (
-    coco, visdrone, visdrone_chip, visdrone_chip_xml)
+    visdrone, visdrone_chip_json, visdrone_chip_xml)
 from torch.utils.data import DataLoader
 
 
 def make_data_loader(opt, train=True):
-
-    if opt.dataset in ['coco', 'COCO', 'Coco']:
-        batch_size = opt.batch_size
-
-        if train:
-            set_name = 'train2017'
-        else:
-            set_name = 'val2017'
-
-        dataset = coco.CocoDataset(opt, set_name=set_name, train=train)
-        sampler = coco.AspectRatioBasedSampler(
-            dataset,
-            batch_size=batch_size,
-            drop_last=False)
-        dataloader = DataLoader(dataset,
-                                num_workers=opt.workers,
-                                collate_fn=dataset.collater,
-                                batch_sampler=sampler)
-
-        return dataset, dataloader
-
-    elif opt.dataset in ['visdrone', 'VisDrone', 'Visdrone']:
+    if str.lower(opt.dataset) == 'visdrone':
         batch_size = opt.batch_size
 
         if train:
@@ -45,7 +24,7 @@ def make_data_loader(opt, train=True):
 
         return dataset, dataloader
 
-    elif opt.dataset in ['visdrone_chip', 'VisDrone_chip', 'Visdrone_chip']:
+    elif str.lower(opt.dataset) == 'visdrone_chip_json':
         batch_size = opt.batch_size
 
         if train:
@@ -53,8 +32,8 @@ def make_data_loader(opt, train=True):
         else:
             set_name = 'val'
 
-        dataset = visdrone_chip.VisdroneDataset(opt, set_name=set_name, train=train)
-        sampler = visdrone_chip.AspectRatioBasedSampler(
+        dataset = visdrone_chip_json.VisdroneDataset(opt, set_name=set_name, train=train)
+        sampler = visdrone_chip_json.AspectRatioBasedSampler(
             dataset,
             batch_size=batch_size,
             drop_last=False)
@@ -65,7 +44,7 @@ def make_data_loader(opt, train=True):
 
         return dataset, dataloader
 
-    elif opt.dataset in ['visdrone_chip_xml', 'VisDrone_chip_xml', 'Visdrone_chip_xml']:
+    elif str.lower(opt.dataset) == 'visdrone_chip_xml':
         batch_size = opt.batch_size
 
         if train:

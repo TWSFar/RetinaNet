@@ -13,7 +13,7 @@ class BBoxTransform(nn.Module):
         else:
             self.mean = mean
         if std is None:
-            self.std = torch.from_numpy(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32))
+            self.std = torch.from_numpy(np.array([1, 1, 1, 1]).astype(np.float32))
         else:
             self.std = std
 
@@ -187,9 +187,7 @@ def re_resize(pre_bboxes, scale, resize_type):
     # correct boxes for image scale
     if resize_type == "irregular":
         pre_bboxes = pre_bboxes / scale
-    elif resize_type == "regular":
-        pre_bboxes[:, [0, 2]] = pre_bboxes[:, [0, 2]] / scale[0]
-        pre_bboxes[:, [1, 3]] = pre_bboxes[:, [1, 3]] / scale[1]
+
     elif resize_type == "letterbox":
         pre_bboxes[:, 0] = pre_bboxes[:, 0] / scale[0] - scale[1]
         pre_bboxes[:, 1] = pre_bboxes[:, 1] / scale[0] - scale[2]

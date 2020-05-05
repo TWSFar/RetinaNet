@@ -2,13 +2,16 @@ import cv2
 import random
 import numpy as np
 import torch
+from PIL import Image, ImageFilter
+from torchvision.transforms import ColorJitter
 
 
+# ------Scale change------
 class IrRegularResizer(object):
     """Convert ndarrays in sample to Tensors."""
-    def __init__(self, min_side, max_side):
-        self.min_side = min_side
-        self.max_side = max_side
+    def __init__(self, input_size):
+        self.min_side = min(input_size)
+        self.max_side = max(input_size)
 
     def __call__(self, sample):
         image, annots = sample['img'], sample['annot']
@@ -33,38 +36,11 @@ class IrRegularResizer(object):
         new_image[:H, :W, :] = image.astype(np.float32)
 
         try:
-            annots[:, :4] *= scale
+            annots[:, :4] = annots[:, :4] * scale
         except:
             annots = np.array([])
 
-        return {'img': torch.from_numpy(new_image), 'annot': torch.from_numpy(annots), 'scale': scale}
-
-
-class RegularResizer(object):
-    def __init__(self, input_size):
-        self.input_size = input_size  # (x, y)
-
-    def __call__(self, sample):
-        image, annots = sample['img'], sample['annot']
-        ratio_x = self.input_size[0] / image.shape[1]
-        ratio_y = self.input_size[1] / image.shape[0]
-        image = cv2.resize(image,
-                           (self.input_size[0], self.input_size[1]),
-                           interpolation=cv2.INTER_LINEAR)
-
-        W, H = self.input_size
-        pad_w = 32 - W % 32 if W % 32 != 0 else 0
-        pad_h = 32 - H % 32 if H % 32 != 0 else 0
-        new_image = np.zeros((H + pad_h, W + pad_w, 3)).astype(np.float32)
-        new_image[:H, :W, :] = image.astype(np.float32)
-        image = torch.from_numpy(new_image)
-
-        if annots is not None:
-            annots[:, [0, 2]] = annots[:, [0, 2]] * ratio_x
-            annots[:, [1, 3]] = annots[:, [1, 3]] * ratio_y
-            annots = torch.from_numpy(annots)
-
-        return {'img': image, 'annot': annots, 'scale': (ratio_x, ratio_y)}
+        return {'img': new_image, 'annot': annots, 'scale': scale}
 
 
 class Letterbox(object):
@@ -95,27 +71,50 @@ class Letterbox(object):
 
         image = cv2.copyMakeBorder(image, top, bottom, left, right,
                                    cv2.BORDER_CONSTANT)  # padded square
+
         image = cv2.resize(image, (self.input_size[0], self.input_size[1]))
 
         H, W, C = image.shape
         pad_w = 32 - W % 32 if W % 32 != 0 else 0
         pad_h = 32 - H % 32 if H % 32 != 0 else 0
-        new_image = np.zeros((H + pad_h, W + pad_w, C)).astype(np.float32)
-        new_image[:H, :W, :] = image.astype(np.float32)
-
-        image = torch.from_numpy(new_image)
+        new_image = np.zeros((H + pad_h, W + pad_w, C)).astype(image.dtype)
+        new_image[:H, :W, :] = image
 
         if annots is not None and len(annots) > 0:
             annots[:, 0] = ratio * (annots[:, 0] + left)
             annots[:, 1] = ratio * (annots[:, 1] + top)
             annots[:, 2] = ratio * (annots[:, 2] + left)
             annots[:, 3] = ratio * (annots[:, 3] + top)
-            annots = torch.from_numpy(annots)
 
-        return {'img': image, 'annot': annots, 'scale': (ratio, left, top)}
+        return {'img': new_image, 'annot': annots, 'scale': (ratio, left, top)}
 
 
-class Augmenter(object):
+# ------Light changes------
+class RandomColorJeter(object):
+    def __init__(self, brightness=0, contrast=0, saturation=0, hue=0):
+        self.CJ = ColorJitter(brightness, contrast, saturation, hue)
+
+    def __call__(self, sample):
+        img = Image.fromarray(sample['img'].astype(np.uint8))
+        sample['img'] = self.CJ(img)
+        sample['img'] = np.array(sample['img'])
+
+        return sample
+
+
+class RandomGaussianBlur(object):
+    def __call__(self, sample):
+        img = Image.fromarray(sample['img'])
+        if random.random() < 0.5:
+            img = img.filter(ImageFilter.GaussianBlur(
+                radius=random.random()))
+            sample['img'] = np.array(sample['img'])
+
+        return sample
+
+
+# ------Augmenter------
+class RandomHorizontalFlip(object):
     """Convert ndarrays in sample to Tensors."""
 
     def __call__(self, sample, flip_x=0.5):
@@ -126,11 +125,12 @@ class Augmenter(object):
 
             H, W, C = image.shape
 
-            x1 = annots[:, 0].copy()
-            x2 = annots[:, 2].copy()
+            if annots is not None:
+                x1 = annots[:, 0].copy()
+                x2 = annots[:, 2].copy()
 
-            annots[:, 0] = W - x2
-            annots[:, 2] = W - x1
+                annots[:, 0] = W - x2
+                annots[:, 2] = W - x1
 
             sample = {'img': image, 'annot': annots}
 
@@ -144,13 +144,11 @@ class Normalizer(object):
         self.std = std
 
     def __call__(self, sample):
+        if sample['img'].max() > 1:
+            sample['img'] = sample['img'] / 255.
+        sample['img'] = (sample['img'].astype(np.float32)-self.mean) / self.std
 
-        image, annots = sample['img'], sample['annot']
-        if image.max() > 1:
-            image = image / 255.
-        image = (image.astype(np.float32)-self.mean) / self.std
-
-        return {'img': image, 'annot': annots}
+        return sample
 
 
 class UnNormalizer(object):
@@ -170,9 +168,27 @@ class UnNormalizer(object):
         return tensor
 
 
+# ------Occlusion------
+# No
+
+
+# ------Tools------
+class ToTensor(object):
+    """Convert ndarrays in sample to Tensors."""
+
+    def __call__(self, sample):
+        sample['img'] = torch.from_numpy(sample['img'])
+        if sample['annot'] is not None:
+            sample['annot'] = torch.from_numpy(sample['annot'])
+
+        return sample
+
+
 if __name__ == "__main__":
     model = Normalizer()
-    img = np.random.rand(2, 2, 3)
+    tsf = [RandomColorJeter(), RandomGaussianBlur(), Letterbox(), RandomHorizontalFlip(), Normalizer(), ToTensor()]
+    img = np.random.rand(30, 30, 3)
     sample = {"img": img, "annot": None}
-    temp = model(sample)
+    for t in tsf:
+        sample = t(sample)
     pass

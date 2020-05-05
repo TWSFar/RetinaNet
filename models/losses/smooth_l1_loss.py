@@ -30,7 +30,7 @@ class SmoothL1Loss(nn.Module):
         assert pred.shape[0] == target.shape[0]
 
         anchor = xyxy_2_xywh(anchor)
-        variances = torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(pred.device)
+        variances = torch.Tensor([[1., 1., 1., 1.]]).to(pred.device)
         gt = encode(target, anchor, variances)
 
         diff = torch.abs(pred - gt)

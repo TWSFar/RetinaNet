@@ -9,13 +9,12 @@ class Config:
     dataset = "visdrone"
     root_dir = user_dir + "/data/Visdrone"
     test_dir = user_dir + "/data/Visdrone/VisDrone2019-DET-val/images"
-    resize_type = "letterbox"  # [regular, irregular, letterbox]
-    min_size = 1024
-    max_size = 1024
-    mean = [0.373, 0.378, 0.365]
-    std = [0.192, 0.183, 0.194]
-    resume = False
-    pre = None
+    resize_type = "irregular"  # [irregular, letterbox]
+    min_size = 1000
+    max_size = 600
+    norm_cfg = dict(mean=[0.382, 0.383, 0.367], std=[0.164, 0.156, 0.164])
+    resume = True
+    pre = '/home/twsf/work/RetinaNet/run/retina_visdrone/20200505_20_train/model_best.pth'
 
     # model
     model = "retina"
@@ -32,35 +31,36 @@ class Config:
             reduction='mean',
             loss_weight=1.0),
         loss_bbox=dict(
-            type='CIoULoss')
+            type='SmoothL1Loss', beta=1)
     )
 
     # train
-    batch_size = 3
-    epochs = 70
+    batch_size = 4
+    epochs = 50
     workers = 1
-    freeze_bn = True
+    freeze_bn = False
 
     # optimizer
-    adam = True
-    lr = 0.0002
+    adam = False
+    lr = 0.001
     momentum = 0.9
-    decay = 5*1e-4
+    decay = 0.0001
     steps = [0.8, 0.9]
-    scales = 0.3
+    gamma = 0.3
+    grad_clip = 35
 
     # eval
-    eval_type = "default"  # [cocoeval, default]
+    eval_type = "cocoeval"  # [cocoeval, default]
     nms = dict(
         type="GreedyNms",  # SoftNms
-        pst_thd=0.2,
+        pst_thd=0.05,
         nms_thd=0.5,
         n_pre_nms=20000
     )
 
     # visual
-    print_freq = 10
-    plot_every = 50  # every n batch plot
+    print_freq = 50
+    plot_every = 200  # every n batch plot
     saver_freq = 1
 
     seed = 1

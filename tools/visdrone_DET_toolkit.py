@@ -11,7 +11,7 @@ sys.path.insert(0, osp.join(osp.dirname(osp.abspath(__file__)), '../'))
 from models.utils import DefaultEval
 from utils import plot_img
 ANNOTATION_DIR = "/home/twsf/data/Visdrone/VisDrone2019-DET-val/annotations/"
-PREDICTION_DIR = "/home/twsf/work/RetinaNet/DET_results-val_2"
+PREDICTION_DIR = "/home/twsf/work/RetinaNet/DET_results-val"
 IGNORE_IOU = 0.9
 CLASSES = ('pedestrian', 'person', 'bicycle', 'car', 'van',
            'truck', 'tricycle', 'awning-tricycle', 'bus', 'motor')

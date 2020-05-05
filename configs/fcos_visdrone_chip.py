@@ -6,9 +6,8 @@ user_dir = os.path.expanduser('~')
 
 class Config:
     # data
-    dataset = "coco"
-    root_dir = user_dir + "/data/coco"
-    test_dir = user_dir + "/data/coco/image/"
+    dataset = "visdrone"
+    root_dir = user_dir + "/data/Visdrone"
     resize_type = "letterbox"  # [regular, irregular, letterbox]
     min_size = 1024
     max_size = 1024
@@ -18,49 +17,49 @@ class Config:
     pre = None
 
     # model
-    model = "retina"
+    model = "fcos"
     backbone = 'resnet50'
     neck = "fpn"
     head = dict(
-        type="RetinaHead",
+        type="FCOSHead",
         strides=[8, 16, 32, 64, 128],
         loss_cls=dict(
             type='FocalLoss',
             use_sigmoid=True,
             gamma=2.0,
             alpha=0.25,
-            reduction='sum',
             loss_weight=1.0),
-        loss_bbox=dict(
-            type='CIoULoss')
-    )
+        loss_bbox=dict(type='IoULoss', loss_weight=1.0),
+        loss_centerness=dict(
+            type='CrossEntropyLoss',
+            use_sigmoid=True,
+            loss_weight=1.0))
 
     # train
     batch_size = 3
     epochs = 70
     workers = 1
-    freeze_bn = True
+    freeze_bn = False
 
-    # optimizer
-    adam = True
+    # param for optimizer
+    adam = False
     lr = 0.0002
     momentum = 0.9
-    decay = 5*1e-4
-    steps = [0.8, 0.9]
-    scales = 0.3
+    decay = 0.0001
+    gamma = 0.3
 
     # eval
-    eval_type = "default"  # [cocoeval, default]
+    eval_type = "default"
     nms = dict(
         type="GreedyNms",  # SoftNms
-        pst_thd=0.2,
+        pst_thd=0.01,
         nms_thd=0.5,
-        n_pre_nms=20000
+        n_pre_nms=6000
     )
 
     # visual
-    print_freq = 10
-    plot_every = 50  # every n batch plot
+    print_freq = 50
+    plot_every = 100  # every n batch plot
     saver_freq = 1
 
     seed = 1

@@ -1,14 +1,15 @@
-import math
 import torch
 import torch.nn as nn
 from ..losses import build_loss
-from ..utils import (Anchors, BBoxTransform, iou_cpu)
+from ..utils import (Anchors, BBoxTransform,
+                     iou_cpu, bias_init_with_prob,
+                     kaiming_init, normal_init)
 
 # from models.losses.debug import FocalLoss
 
 
 class ClassificationModel(nn.Module):
-    def __init__(self, num_features_in, num_anchors=9, num_classes=80, prior=0.01, feature_size=256):
+    def __init__(self, num_features_in, num_anchors=9, num_classes=80, feature_size=256):
         super(ClassificationModel, self).__init__()
 
         self.num_classes = num_classes
@@ -28,17 +29,14 @@ class ClassificationModel(nn.Module):
 
         self.output = nn.Conv2d(feature_size, num_anchors*num_classes, kernel_size=3, padding=1)
 
+        self.init_weights()
+
+    def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-
-        prior = 0.01
-        self.output.weight.data.fill_(0)
-        self.output.bias.data.fill_(-math.log((1.0-prior)/prior))
+                normal_init(m, std=0.01)
+        bias_cls = bias_init_with_prob(0.01)
+        normal_init(self.output, std=0.01, bias=bias_cls)
 
     def forward(self, x):
 
@@ -83,17 +81,12 @@ class RegressionModel(nn.Module):
 
         self.output = nn.Conv2d(feature_size, num_anchors*4, kernel_size=3, padding=1)
 
+        self.init_weights()
+
+    def init_weights(self):
         for m in self.modules():
             if isinstance(m, nn.Conv2d):
-                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
-                m.weight.data.normal_(0, math.sqrt(2. / n))
-            elif isinstance(m, nn.BatchNorm2d):
-                m.weight.data.fill_(1)
-                m.bias.data.zero_()
-
-        prior = 0.01
-        self.output.weight.data.fill_(0)
-        self.output.bias.data.fill_(-math.log((1.0-prior)/prior))
+                normal_init(m, std=0.01)
 
     def forward(self, x):
 
@@ -213,7 +206,7 @@ class RetinaHead(nn.Module):
         #     & (agd_ann_wh.max(dim=1)[0] < resticts[:, 1])
 
         positive_indices = torch.ge(IoU_max, 0.5)
-
+        print(positive_indices.sum())
         targets[torch.lt(IoU_max, 0.4), :] = 0
         targets[positive_indices, :] = 0
         targets[positive_indices,

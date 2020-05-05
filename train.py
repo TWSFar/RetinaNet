@@ -5,22 +5,18 @@ import time
 import collections
 import numpy as np
 
-# from models_demo import model_demo
-
 # from configs.retina_visdrone import opt
-from configs.retina_visdrone_chip import opt
-# from configs.retina_coco import opt
+from configs.retina_visdrone import opt
 
 from dataloaders import make_data_loader
 from models import Model
 from models.utils import (PostProcess, DefaultEval,
                           re_resize, parse_losses)
 from utils import TensorboardSummary, Saver, Timer
+from pycocotools.cocoeval import COCOeval
 
 import torch
 import torch.optim as optim
-from pycocotools.cocoeval import COCOeval
-
 import multiprocessing
 multiprocessing.set_start_method('spawn', True)
 torch.manual_seed(opt.seed)
@@ -35,7 +31,7 @@ class Trainer(object):
 
         # visualize
         self.summary = TensorboardSummary(self.saver.experiment_dir, opt)
-        self.writer = self.summary.create_summary()
+        self.writer = self.summary.writer
 
         # Define Dataloader
         # train dataset
@@ -50,7 +46,6 @@ class Trainer(object):
         # Define Network
         # initilize the network here.
         self.model = Model(opt, self.num_classes)
-        # self.model = RetinaNet(opt, self.num_classes)
         self.model = self.model.to(opt.device)
 
         # contain nms for val
@@ -99,26 +94,22 @@ class Trainer(object):
 
     def training(self, epoch):
         self.model.train()
-        if len(opt.gpu_id) > 1:
-            self.model.module.freeze_bn()
-        else:
-            self.model.freeze_bn()
         epoch_loss = []
         last_time = time.time()
         for iter_num, data in enumerate(self.train_loader):
-            # if iter_num > 3: break
+            # if iter_num >= 0: break
             try:
                 self.optimizer.zero_grad()
-                imgs = data['img'].to(opt.device)
+                inputs = data['img'].to(opt.device)
                 targets = data['annot'].to(opt.device)
 
-                losses = self.model(imgs, targets)
+                losses = self.model(inputs, targets)
                 loss, log_vars = parse_losses(losses)
 
                 if bool(loss == 0):
                     continue
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 0.1)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), opt.grad_clip)
                 self.optimizer.step()
                 self.loss_hist.append(float(loss.cpu().item()))
                 epoch_loss.append(float(loss.cpu().item()))
@@ -166,14 +157,14 @@ class Trainer(object):
                 # if ii > 4: break
                 scale = data['scale']
                 index = data['index']
-                imgs = data['img'].to(opt.device)
+                inputs = data['img'].to(opt.device)
                 targets = data['annot']
 
                 # run network
-                scores, labels, boxes = self.model(imgs)
+                scores, labels, boxes = self.model(inputs)
 
                 scores_bt, labels_bt, boxes_bt = self.post_pro(
-                    scores, labels, boxes, imgs.shape[-2:])
+                    scores, labels, boxes, inputs.shape[-2:])
 
                 outputs = []
                 for k in range(len(boxes_bt)):
@@ -191,8 +182,7 @@ class Trainer(object):
                 global_step = ii + self.nbatch_val * epoch
                 if global_step % opt.plot_every == 0:
                     self.summary.visualize_image(
-                        self.writer,
-                        imgs, targets, outputs,
+                        inputs, targets, outputs,
                         self.val_dataset.labels,
                         global_step)
 
@@ -204,7 +194,7 @@ class Trainer(object):
                         pre_labs = labels_bt[jj]
 
                         if pre_bboxes.shape[0] > 0:
-                            re_resize(pre_bboxes, scale, opt.resize_type)
+                            re_resize(pre_bboxes, scale[jj], opt.resize_type)
 
                             # change to (x, y, w, h) (MS COCO standard)
                             pre_bboxes[:, 2] -= pre_bboxes[:, 0]
@@ -266,12 +256,12 @@ class Trainer(object):
                 # write output
                 if not len(results):
                     return 0
-                json.dump(results, open('run/{}/{}_bbox_results.json'.format(
+                json.dump(results, open('{}_bbox_results.json'.format(
                     opt.dataset, self.val_dataset.set_name), 'w'), indent=4)
 
                 # load results in COCO evaluation tool
                 coco_true = self.val_dataset.coco
-                coco_pred = coco_true.loadRes('run/{}/{}_bbox_results.json'.format(
+                coco_pred = coco_true.loadRes('{}_bbox_results.json'.format(
                     opt.dataset, self.val_dataset.set_name))
 
                 # run COCO evaluation
@@ -286,10 +276,10 @@ class Trainer(object):
                 self.saver.save_coco_eval_result(stats=stats, epoch=epoch)
 
                 # visualize
-                self.writer.add_scalar('val/AP50', stats[1], epoch)
+                self.writer.add_scalar('val/mAP', stats[0], epoch)
 
                 # according AP50
-                return stats[1]
+                return stats[0]
 
             else:
                 raise NotImplementedError
@@ -316,11 +306,11 @@ def train(**kwargs):
 
         # val
         val_time = time.time()
-        ap50 = trainer.validate(epoch)
+        mAP = trainer.validate(epoch)
         trainer.timer.set_val_eta(epoch, time.time() - val_time)
 
-        is_best = ap50 > trainer.best_pred
-        trainer.best_pred = max(ap50, trainer.best_pred)
+        is_best = mAP > trainer.best_pred
+        trainer.best_pred = max(mAP, trainer.best_pred)
         if (epoch % opt.saver_freq == 0 and epoch != 0) or is_best:
             trainer.saver.save_checkpoint({
                 'epoch': epoch,

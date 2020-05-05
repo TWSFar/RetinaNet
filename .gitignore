@@ -12,3 +12,4 @@ DET_results-*/
 run/
 .debug.py
 models_demo/
+*.json

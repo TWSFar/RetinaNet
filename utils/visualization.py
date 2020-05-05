@@ -4,7 +4,7 @@ import torch
 import numpy as np
 from torchvision.utils import make_grid
 from tensorboardX import SummaryWriter
-from dataloaders.transform import UnNormalizer
+from dataloaders.transforms import UnNormalizer
 # from dataloaders.utils import decode_seg_map_sequence
 
 box_colors = ((0, 0, 1), (0, 1, 0), (0, 1, 1), (1, 0, 0), (1, 0, 1),
@@ -53,13 +53,10 @@ def plot_img(img, bboxes, id2name):
 class TensorboardSummary(object):
     def __init__(self, directory, opt):
         self.directory = directory
-        self.unnor = UnNormalizer(opt.mean, opt.std)
+        self.unnor = UnNormalizer(**opt.norm_cfg)
+        self.writer = SummaryWriter(log_dir=os.path.join(self.directory))
 
-    def create_summary(self):
-        writer = SummaryWriter(log_dir=os.path.join(self.directory))
-        return writer
-
-    def visualize_image(self, writer, imgs, gts, outputs, id2name, global_step):
+    def visualize_image(self, imgs, gts, outputs, id2name, global_step):
         # image transform((3, x, y) -> (x, y, 3) -> numpy -> BGR)
         gt_imgs = []
         pred_imgs = []
@@ -86,8 +83,8 @@ class TensorboardSummary(object):
 
         # target
         grid_target = make_grid(gt_imgs.clone().data, nrow=3, normalize=False)
-        writer.add_image('Groundtruth density', grid_target, global_step)
+        self.writer.add_image('Groundtruth_density', grid_target, global_step)
 
         # output
         grid_output = make_grid(pred_imgs.clone().data, nrow=3, normalize=False)
-        writer.add_image('Predicted density', grid_output, global_step)
+        self.writer.add_image('Predicted_density', grid_output, global_step)

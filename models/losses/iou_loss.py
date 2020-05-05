@@ -28,7 +28,7 @@ class IoULoss(nn.Module):
         """
         assert pred.shape[0] == target.shape[0]
 
-        variances = torch.Tensor([[0.1, 0.1, 0.2, 0.2]]).to(pred.device)
+        variances = torch.Tensor([[1., 1., 1., 1.]]).to(pred.device)
 
         if anchor is None:
             pred_box = pred

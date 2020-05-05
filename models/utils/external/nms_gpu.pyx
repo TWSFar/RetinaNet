@@ -61,7 +61,7 @@ def nms(np.ndarray[np.float32_t, ndim=2] dets, np.float thresh):
             w = max(0.0, xx2 - xx1 + 1)
             h = max(0.0, yy2 - yy1 + 1)
             inter = w * h
-            ovr = inter / (iarea + areas[j] - inter)
+            ovr = inter / (iarea + areas[j] - inter + 0.000001)
             if ovr >= thresh:
                 suppressed[j] = 1
 

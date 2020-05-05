@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 from torch.utils.data.sampler import Sampler
 from torchvision import transforms
 sys.path.insert(0, osp.join(osp.dirname(osp.abspath(__file__)), '../../'))
-from dataloaders import transform as tsf
+from dataloaders import transforms as tsf
 
 INSTANCES_SET = 'instances_{}.json'
 
@@ -48,21 +48,22 @@ class VisdroneDataset(Dataset):
 
         if self.train:
             self.transform = transforms.Compose([
-                tsf.Normalizer(opt.mean, opt.std),
-                tsf.Augmenter(),
-                self.resize
+                tsf.RandomColorJeter(0.3, 0.3, 0.3, 0.3),
+                tsf.RandomGaussianBlur(),
+                self.resize,
+                tsf.Normalizer(**opt.norm_cfg),
+                tsf.ToTensor()
             ])
         else:
             self.transform = transforms.Compose([
-                tsf.Normalizer(opt.mean, opt.std),
-                self.resize
+                self.resize,
+                tsf.Normalizer(**opt.norm_cfg),
+                tsf.ToTensor()
             ])
 
     def resizes(self, resize_type):
         if resize_type == 'irregular':
-            return tsf.IrRegularResizer(self.min_size, self.max_size)
-        elif resize_type == 'regular':
-            return tsf.RegularResizer(self.input_size)
+            return tsf.IrRegularResizer(self.input_size)
         elif resize_type == "letterbox":
             return tsf.Letterbox(self.input_size, train=self.train)
         else:
@@ -206,30 +207,3 @@ class AspectRatioBasedSampler(Sampler):
 
         # divide into groups, one group = one batch
         return [[order[x % len(order)] for x in range(i, i + self.batch_size)] for i in range(0, len(order), self.batch_size)]
-
-
-def show_image(img, labels):
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(10, 10))
-    plt.subplot(1, 1, 1).imshow(img[:, :, ::-1])
-    plt.plot(labels[:, [0, 2, 2, 0, 0]].T, labels[:, [1, 1, 3, 3, 1]].T, '-')
-    plt.show()
-    pass
-
-
-if __name__ == '__main__':
-    from easydict import EasyDict
-    from torch.utils.data import DataLoader
-    opt = EasyDict()
-    opt.root_dir = '/home/twsf/data/Visdrone'
-    opt.batch_size = 2
-    opt.input_size = (1024, 1024)
-    opt.min_size = 1024
-    opt.max_size = 1024
-    dataset = VisdroneDataset(opt)
-    print(dataset.labels)
-    sample = dataset.__getitem__(0)
-    sampler = AspectRatioBasedSampler(dataset, batch_size=2, drop_last=False)
-    dl = DataLoader(dataset, batch_sampler=sampler, collate_fn=dataset.collater)
-    for i, sp in enumerate(dl):
-        pass
