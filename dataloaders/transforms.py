@@ -14,14 +14,19 @@ class Resizer(object):
 
     def __call__(self, sample):
         image, annots = sample['img'], sample['annot']
-        input_0 = (self.input_size[0] // 32 + 1) * 32
-        input_1 = (self.input_size[1] // 32 + 1) * 32
-        image, scale_factor = mmcv.imrescale(image, (input_0, input_1), return_scale=True)
+        image, scale_factor = mmcv.imrescale(image, self.input_size, return_scale=True)
 
-        if annots is not None:
+        # Pad
+        H, W, C = image.shape
+        pad_w = 32 - W % 32 if W % 32 != 0 else 0
+        pad_h = 32 - H % 32 if H % 32 != 0 else 0
+        new_image = np.zeros((H + pad_h, W + pad_w, C)).astype(image.dtype)
+        new_image[:H, :W, :] = image
+
+        if annots is not None and len(annots) > 0:
             annots[:, :4] = annots[:, :4] * scale_factor
 
-        return {'img': image, 'annot': annots, 'scale': scale_factor}
+        return {'img': new_image, 'annot': annots, 'scale': scale_factor}
 
 
 class Letterbox(object):
