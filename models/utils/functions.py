@@ -13,7 +13,7 @@ class BBoxTransform(nn.Module):
         else:
             self.mean = mean
         if std is None:
-            self.std = torch.from_numpy(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32))
+            self.std = torch.from_numpy(np.array([1, 1, 1, 1]).astype(np.float32))
         else:
             self.std = std
 
