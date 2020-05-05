@@ -206,7 +206,7 @@ class RetinaHead(nn.Module):
         #     & (agd_ann_wh.max(dim=1)[0] < resticts[:, 1])
 
         positive_indices = torch.ge(IoU_max, 0.5)
-        print(positive_indices.sum())
+        # print(positive_indices.sum())
         targets[torch.lt(IoU_max, 0.4), :] = 0
         targets[positive_indices, :] = 0
         targets[positive_indices,
