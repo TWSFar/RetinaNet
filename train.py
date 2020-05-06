@@ -10,7 +10,7 @@ from configs.retina_visdrone import opt
 
 from dataloaders import make_data_loader
 from models import Model
-from models.utils import (PostProcess, DefaultEval,
+from models.utils import (PostProcess, VOCeval,
                           re_resize, parse_losses)
 from utils import TensorboardSummary, Saver, Timer
 from pycocotools.cocoeval import COCOeval
@@ -148,7 +148,7 @@ class Trainer(object):
 
     def validate(self, epoch):
         self.model.eval()
-        def_eval = DefaultEval()
+        voc_eval = VOCeval()
         # start collecting results
         with torch.no_grad():
             results = []
@@ -176,7 +176,7 @@ class Trainer(object):
 
                 # statistics
                 if opt.eval_type == "voceval":
-                    def_eval.statistics(outputs, targets, iou_thresh=0.5)
+                    voc_eval.statistics(outputs, targets, iou_thresh=0.5)
 
                 # visualize
                 global_step = ii + self.nbatch_val * epoch
@@ -210,7 +210,7 @@ class Trainer(object):
                                     'image_id': self.val_dataset.image_ids[index[jj]],
                                     'category_id': self.val_dataset.label_to_coco_label(label),
                                     'score': float(score),
-                                    'bbox': box.tolist(),
+                                    'bbox': box.tolist()
                                 }
 
                                 # append detection to results
@@ -225,11 +225,11 @@ class Trainer(object):
 
             if opt.eval_type == "voceval":
                 # Compute statistics
-                stats = [np.concatenate(x, 0) for x in list(zip(*def_eval.stats))]
+                stats = [np.concatenate(x, 0) for x in list(zip(*voc_eval.stats))]
                 # number of targets per class
                 nt = np.bincount(stats[3].astype(np.int64), minlength=self.num_classes)
                 if len(stats):
-                    p, r, ap, f1, ap_class = def_eval.ap_per_class(*stats)
+                    p, r, ap, f1, ap_class = voc_eval.ap_per_class(*stats)
                     mp, mr, map, mf1 = p.mean(), r.mean(), ap.mean(), f1.mean()
 
                 # visualize
@@ -244,7 +244,6 @@ class Trainer(object):
                 printline = '%20s' + '%10.3g' * 5
                 pf = printline % ('all', nt.sum(), mp, mr, map, mf1)  # print format
                 self.logger.info(pf)
-                self.saver.save_eval_result(stats=pf)
                 if self.num_classes > 1 and len(stats):
                     for i, c in enumerate(ap_class):
                         pf = printline % (self.val_dataset.labels[c], nt[c], p[i], r[i], ap[i], f1[i])
@@ -273,7 +272,7 @@ class Trainer(object):
 
                 # save result
                 stats = coco_eval.stats
-                self.saver.save_coco_eval_result(stats=stats, epoch=epoch)
+                self.saver.save_coco_eval_result(stats)
 
                 # visualize
                 self.writer.add_scalar('val/mAP', stats[0], epoch)
@@ -285,9 +284,9 @@ class Trainer(object):
                 raise NotImplementedError
 
 
-def eval(**kwargs):
+def val(**kwargs):
     opt._parse(kwargs)
-    evaler = Trainer("eval")
+    evaler = Trainer("val")
     print('Num evaluating images: {}'.format(len(evaler.val_dataset)))
 
     evaler.validate(evaler.start_epoch)
@@ -332,4 +331,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
     # train()
-    fire.Fire(train)
+    fire.Fire(val)

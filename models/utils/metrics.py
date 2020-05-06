@@ -2,7 +2,7 @@ import numpy as np
 import torch
 
 
-class DefaultEval(object):
+class VOCeval(object):
     def __init__(self):
         self.stats = []
 

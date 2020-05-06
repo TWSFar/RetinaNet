@@ -13,8 +13,8 @@ class Config:
     min_size = 1000
     max_size = 600
     norm_cfg = dict(mean=[0.382, 0.383, 0.367], std=[0.164, 0.156, 0.164])
-    resume = False
-    pre = None
+    resume = True
+    pre = '/home/twsf/work/RetinaNet/run/retina_visdrone/20200506_01_train/model_best.pth'
 
     # model
     model = "retina"
@@ -35,7 +35,7 @@ class Config:
     )
 
     # train
-    batch_size = 4
+    batch_size = 2
     epochs = 50
     workers = 1
     freeze_bn = False
@@ -50,7 +50,7 @@ class Config:
     grad_clip = 35
 
     # eval
-    eval_type = "cocoeval"  # [cocoeval, voceval]
+    eval_type = "voceval"  # [cocoeval, voceval]
     nms = dict(
         type="GreedyNms",  # SoftNms
         pst_thd=0.05,

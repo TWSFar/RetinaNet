@@ -48,8 +48,9 @@ class VisdroneDataset(Dataset):
 
         if self.train:
             self.transform = transforms.Compose([
-                tsf.RandomColorJeter(0.3, 0.3, 0.3, 0.3),
-                tsf.RandomGaussianBlur(),
+                # tsf.RandomColorJeter(0.3, 0.3, 0.3, 0.3),
+                # tsf.RandomGaussianBlur(),
+                tsf.RandomHorizontalFlip(),
                 self.resize,
                 tsf.Normalizer(**opt.norm_cfg),
                 tsf.ToTensor()

@@ -51,15 +51,13 @@ class Saver(object):
                 f.write('epoch {}: {}'.format(state['epoch'], best_pred))
             shutil.copyfile(filename, os.path.join(self.experiment_dir, 'model_best.pth'))
 
-    def save_coco_eval_result(self, epoch, stats):
-        with open(os.path.join(self.experiment_dir, 'result.txt'), 'a') as f:
-            f.writelines(
-                "[epoch: {}, AP@50:95: {:.3%}, AP@50: {:.3%}]\n".format(
-                    epoch, stats[0], stats[1]))
+    def save_coco_eval_result(self, stats):
+        self.logger.info(("bbox_mAP: {:.3f}, bbox_mAP_50: {:.3f}, bbox_mAP_75: {:.3f}, "
+                          "bbox_mAP_s: {:.3f}, bbox_mAP_m: {:.3f}, bbox_mAP_l: {:.3f}").format(*stats))
 
     def save_test_result(self, results):
         with open(os.path.join(self.experiment_dir, 'results.json'), "w") as f:
-            json.dump(results, f, cls=MyEncoder)
+            json.dump(results, f, cls=MyEncoder, indent=4)
             print("results json saved.")
 
     def backup_result(self):
@@ -68,10 +66,7 @@ class Saver(object):
             os.mkdir(backup_root)
         backup_dir = osp.join(backup_root, self.experiment_name)
         assert not osp.exists(backup_dir), "experiment has already backup"
-        try:
-            os.mkdir(backup_dir)
-        except:
-            pass
+        os.mkdir(backup_dir)
         for file in os.listdir(self.experiment_dir):
             source_file = osp.join(self.experiment_dir, file)
             if osp.isfile(source_file):
