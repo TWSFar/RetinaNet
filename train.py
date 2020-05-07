@@ -164,7 +164,7 @@ class Trainer(object):
             # results = []
             # image_ids = []
             for ii, data in enumerate(self.val_loader):
-                if ii > 0: break
+                # if ii > 0: break
                 scale = data['scale']
                 index = data['index']
                 inputs = data['img'].to(opt.device)
@@ -222,9 +222,7 @@ def val(**kwargs):
     opt._parse(kwargs)
     evaler = Trainer("val")
     print('Num evaluating images: {}'.format(len(evaler.val_dataset)))
-
-    for i in range(2):
-        evaler.validate(evaler.start_epoch)
+    evaler.validate(evaler.start_epoch)
 
 
 def train(**kwargs):
@@ -266,4 +264,4 @@ def train(**kwargs):
 
 if __name__ == '__main__':
     # train()
-    fire.Fire(val)
+    fire.Fire(train)

@@ -11,12 +11,12 @@ class Config:
     test_dir = user_dir + "/data/Visdrone/VisDrone2019-DET-val/images"
     input_size = (1000, 600)
     norm_cfg = dict(mean=[0.382, 0.383, 0.367], std=[0.164, 0.156, 0.164])
-    resume = True
+    resume = False
     pre = '/home/twsf/work/RetinaNet/run/retina_visdrone/20200506_01_train/model_best.pth'
 
     # model
     model = "retina"
-    backbone = 'resnet50'
+    backbone = 'res2next101_32x8d'
     neck = "fpn"
     head = dict(
         type="RetinaHead",
@@ -49,7 +49,7 @@ class Config:
     grad_clip = 35
 
     # eval
-    eval_type = "voceval"  # [cocoeval, voceval]
+    eval_type = "cocoeval"  # [cocoeval, voceval]
     nms = dict(
         type="GreedyNms",  # SoftNms
         pst_thd=0.05,

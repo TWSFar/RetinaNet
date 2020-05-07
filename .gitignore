@@ -13,3 +13,4 @@ run/
 .debug.py
 models_demo/
 *.json
+.vscode/
