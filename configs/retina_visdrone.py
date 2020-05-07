@@ -9,9 +9,7 @@ class Config:
     dataset = "visdrone"
     root_dir = user_dir + "/data/Visdrone"
     test_dir = user_dir + "/data/Visdrone/VisDrone2019-DET-val/images"
-    resize_type = "irregular"  # [irregular, letterbox]
-    min_size = 1000
-    max_size = 600
+    input_size = (1000, 600)
     norm_cfg = dict(mean=[0.382, 0.383, 0.367], std=[0.164, 0.156, 0.164])
     resume = True
     pre = '/home/twsf/work/RetinaNet/run/retina_visdrone/20200506_01_train/model_best.pth'
@@ -35,6 +33,7 @@ class Config:
     )
 
     # train
+    use_apex = True
     batch_size = 2
     epochs = 50
     workers = 1

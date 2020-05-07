@@ -1,10 +1,13 @@
-import numpy as np
+import json 
 import torch
+import numpy as np
+from pycocotools.cocoeval import COCOeval
 
 
-class VOCeval(object):
-    def __init__(self):
+class VOC_eval(object):
+    def __init__(self, num_classes):
         self.stats = []
+        self.num_classes = num_classes
 
     def calc_iou(self, a, b):
         area = (b[:, 2] - b[:, 0]) * (b[:, 3] - b[:, 1])
@@ -173,3 +176,97 @@ class VOCeval(object):
         f1 = 2 * p * r / (p + r + 1e-16)
 
         return p, r, ap, f1, unique_classes.astype('int32')
+
+    def metric(self):
+        # Compute statistics
+        stats = [np.concatenate(x, 0) for x in list(zip(*self.stats))]
+        # number of targets per class
+        # nt = np.bincount(stats[3].astype(np.int64), minlength=self.num_classes)
+        if len(stats):
+            p, r, ap, f1, ap_class = self.ap_per_class(*stats)
+
+        # reset:
+        self.stats = []
+
+        return dict(Precision=p, Recall=r, AP=ap, F1=f1), ap_class
+
+
+class COCO_eval(object):
+    def __init__(self, coco):
+        self.coco = coco
+        self.results = []
+        self.img_ids = []
+        self._get_infos()
+
+    def _get_infos(self):
+        self.gt_img_ids = self.coco.getImgIds()
+        # load class names (name -> label)
+        categories = self.coco.loadCats(self.coco.getCatIds())
+        categories.sort(key=lambda x: x['id'])
+        self.coco_labels = {}
+        for i, c in enumerate(categories):
+            self.coco_labels[i] = c['id']
+
+    def statistics(self, outputs, scales, indexs):
+        """
+        Args:
+            outputs: [batch, [bboexes(4), label, index]]
+            scales: [batch]
+            indexs: [batch]
+        """
+        for idx in range(len(scales)):
+            boxes = outputs[idx][:, :4]
+            labels = outputs[idx][:, 4]
+            scores = outputs[idx][:, 5]
+
+            if boxes.shape[0] > 0:
+                boxes = boxes / scales[idx]
+
+                # change to (x, y, w, h) (MS COCO standard)
+                boxes[:, 2] -= boxes[:, 0]
+                boxes[:, 3] -= boxes[:, 1]
+
+                # compute predicted labels and scores
+                for box_id in range(boxes.shape[0]):
+                    box = boxes[box_id, :]
+                    score = float(scores[box_id])
+                    label = int(labels[box_id])
+                    # append detection for each positively labeled class
+                    image_result = {
+                        'image_id': self.gt_img_ids[indexs[idx]],
+                        'category_id': self.coco_labels[label],
+                        'score': float(score),
+                        'bbox': box.tolist()
+                    }
+
+                    # append detection to results
+                    self.results.append(image_result)
+
+        # append image to list of processed images
+        for idx in indexs:
+            self.img_ids.append(self.gt_img_ids[idx])
+
+    def metirc(self):
+        if not len(self.results):
+            return [0 for i in range(7)]
+
+        json.dump(self.results, open('results.json', 'w'), indent=4)
+
+        # load results in COCO evaluation tool
+        coco_pred = self.coco.loadRes('results.json')
+
+        # run COCO evaluation
+        coco_eval = COCOeval(self.coco, coco_pred, 'bbox')
+        coco_eval.params.imgIds = self.img_ids
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+
+        # save result
+        stats = coco_eval.stats
+
+        # reset
+        self.results = []
+        self.img_ids = []
+
+        return stats

@@ -1,38 +1,60 @@
-def show_image(img, label):
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(10, 10))
-    plt.subplot(1, 1, 1).imshow(img)
-    plt.plot(label[:, [0, 2, 2, 0, 0]].T, label[:, [1, 1, 3, 3, 1]].T, '-')
-    plt.savefig('test.png')
-    plt.close()
-    pass
+from apex import amp
+import torch
+import torch.nn as nn
+import torch.optim as optim
+device = torch.device('cuda:0')
 
-import mmcv
-import cv2
-filename = '00344343.png'
-import time
-temp = time.time()
-for i in range(10000):
-    img2 = cv2.imread(filename)
-temp1 = time.time()
-print(temp1 - temp)
 
-for i in range(10000):
-    img = mmcv.imread(filename)
+class FPN(nn.Module):
+    def __init__(self, out_channel=10):
+        super(FPN, self).__init__()
+        self.conv = nn.Conv2d(3, out_channel, kernel_size=1, stride=1, padding=0)
 
-temp = time.time()-temp1
-print(temp)
-pass
+    def forward(self, x):
+        return self.conv(x)
 
-# import matplotlib.pyplot as plt
-# mean=[0.382, 0.383, 0.367]
-# std=[0.164, 0.156, 0.164]
-# img2 = self.val_dataset.load_image(index[0]) / 255
-# img = inputs[0].cpu().permute(1, 2, 0).numpy() * np.array(std) + np.array(mean)
-# label = boxes_bt[0].numpy()
-# plt.figure(figsize=(10, 10))
-# plt.subplot(1, 1, 1).imshow(img)
-# plt.plot(label[:, [0, 2, 2, 0, 0]].T, label[:, [1, 1, 3, 3, 1]].T, '-')
-# plt.savefig('test.png')
-# plt.close()
-# pass
+
+model = FPN().to(device)
+optimizer = optim.Adam(model.parameters())
+
+
+model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
+model = torch.nn.DataParallel(model, [0, 1])
+for i in range(10):
+    inputs = torch.rand(2, 3, 10, 10).to(device)
+    labels = torch.rand(2, 10, 10, 10).to(device)
+    criterion = nn.MSELoss().to(device)
+
+    outputs = model(inputs)
+    loss = criterion(outputs, labels)
+    with amp.scale_loss(loss, optimizer) as scaled_loss:
+        scaled_loss.backward()
+    optimizer.step()
+
+# Save checkpoint
+checkpoint = {
+    'model': model.state_dict(),
+    'optimizer': optimizer.state_dict(),
+    'amp': amp.state_dict()
+}
+torch.save(checkpoint, 'amp_checkpoint.pt')
+
+# Restore
+model = FPN().to(device)
+optimizer = optim.Adam(model.parameters())
+checkpoint = torch.load('amp_checkpoint.pt')
+
+model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
+model.load_state_dict(checkpoint['model'])
+optimizer.load_state_dict(checkpoint['optimizer'])
+amp.load_state_dict(checkpoint['amp'])
+for i in range(10):
+    inputs = torch.rand(2, 3, 10, 10).to(device)
+    labels = torch.rand(2, 10, 10, 10).to(device)
+    criterion = nn.MSELoss().to(device)
+
+    outputs = model(inputs)
+    loss = criterion(outputs, labels)
+    with amp.scale_loss(loss, optimizer) as scaled_loss:
+        scaled_loss.backward()
+    optimizer.step()

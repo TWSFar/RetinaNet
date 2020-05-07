@@ -55,6 +55,21 @@ class Saver(object):
         self.logger.info(("bbox_mAP: {:.3f}, bbox_mAP_50: {:.3f}, bbox_mAP_75: {:.3f}, "
                           "bbox_mAP_s: {:.3f}, bbox_mAP_m: {:.3f}, bbox_mAP_l: {:.3f}").format(*stats))
 
+    def save_voc_eval_result(self, stats, ap_class, labels):
+        # Print and Write results
+        title = ('%10s' * 5) % ('Class', 'P', 'R', 'mAP', 'F1')
+        self.logger.info(title)
+
+        p, r, ap, f1 = stats['Precision'], stats['Recall'], stats['AP'], stats['F1']
+        printline = '%10s' + '%10.3g' * 4
+        pf = printline % ('all', p.mean(), r.mean(), ap.mean(), f1.mean())
+        self.logger.info(pf)
+
+        if len(labels) > 1:
+            for i, c in enumerate(ap_class):
+                pf = printline % (labels[c], p[i], r[i], ap[i], f1[i])
+                self.logger.info(pf)
+
     def save_test_result(self, results):
         with open(os.path.join(self.experiment_dir, 'results.json'), "w") as f:
             json.dump(results, f, cls=MyEncoder, indent=4)

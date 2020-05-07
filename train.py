@@ -1,6 +1,5 @@
 import os
 import fire
-import json
 import time
 import collections
 import numpy as np
@@ -10,14 +9,13 @@ from configs.retina_visdrone import opt
 
 from dataloaders import make_data_loader
 from models import Model
-from models.utils import (PostProcess, VOCeval,
-                          re_resize, parse_losses)
+from models.utils import PostProcess, VOC_eval, COCO_eval, parse_losses
 from utils import TensorboardSummary, Saver, Timer
-from pycocotools.cocoeval import COCOeval
 
 import torch
 import torch.optim as optim
 import multiprocessing
+from apex import amp
 multiprocessing.set_start_method('spawn', True)
 torch.manual_seed(opt.seed)
 torch.cuda.manual_seed(opt.seed)
@@ -48,7 +46,7 @@ class Trainer(object):
         self.model = Model(opt, self.num_classes)
         self.model = self.model.to(opt.device)
 
-        # contain nms for val
+        # Detection post process(NMS...)
         self.post_pro = PostProcess(**opt.nms)
 
         # Define Optimizer
@@ -57,10 +55,13 @@ class Trainer(object):
         else:
             self.optimizer = optim.SGD(self.model.parameters(), lr=opt.lr, momentum=opt.momentum, weight_decay=opt.decay)
 
+        # Apex
+        if opt.use_apex:
+            self.model, self.optimizer = amp.initialize(self.model, self.optimizer, opt_level='O1')
+
         # Resuming Checkpoint
         self.best_pred = 0.0
         self.start_epoch = 0
-
         if opt.resume:
             if os.path.isfile(opt.pre):
                 print("=> loading checkpoint '{}'".format(opt.pre))
@@ -88,6 +89,12 @@ class Trainer(object):
             self.model = torch.nn.DataParallel(self.model,
                                                device_ids=opt.gpu_id)
 
+        # metrics
+        if opt.eval_type == 'cocoeval':
+            self.eval = COCO_eval(self.val_dataset.coco)
+        else:
+            self.eval = VOC_eval(self.num_classes)
+
         self.loss_hist = collections.deque(maxlen=500)
         self.timer = Timer(opt.epochs, self.nbatch_train, self.nbatch_val)
         self.step_time = collections.deque(maxlen=opt.print_freq)
@@ -108,7 +115,11 @@ class Trainer(object):
 
                 if bool(loss == 0):
                     continue
-                loss.backward()
+                if opt.use_apex:
+                    with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+                        scaled_loss.backward()
+                else:
+                    loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), opt.grad_clip)
                 self.optimizer.step()
                 self.loss_hist.append(float(loss.cpu().item()))
@@ -148,13 +159,12 @@ class Trainer(object):
 
     def validate(self, epoch):
         self.model.eval()
-        voc_eval = VOCeval()
         # start collecting results
         with torch.no_grad():
-            results = []
-            image_ids = []
+            # results = []
+            # image_ids = []
             for ii, data in enumerate(self.val_loader):
-                # if ii > 4: break
+                if ii > 0: break
                 scale = data['scale']
                 index = data['index']
                 inputs = data['img'].to(opt.device)
@@ -169,14 +179,10 @@ class Trainer(object):
                 outputs = []
                 for k in range(len(boxes_bt)):
                     outputs.append(torch.cat((
-                        boxes_bt[k],
-                        labels_bt[k].unsqueeze(1).float(),
-                        scores_bt[k].unsqueeze(1)),
+                        boxes_bt[k].clone(),
+                        labels_bt[k].clone().unsqueeze(1).float(),
+                        scores_bt[k].clone().unsqueeze(1)),
                         dim=1))
-
-                # statistics
-                if opt.eval_type == "voceval":
-                    voc_eval.statistics(outputs, targets, iou_thresh=0.5)
 
                 # visualize
                 global_step = ii + self.nbatch_val * epoch
@@ -186,98 +192,26 @@ class Trainer(object):
                         self.val_dataset.labels,
                         global_step)
 
-                if opt.eval_type == "cocoeval":
-                    # save json
-                    for jj in range(len(boxes_bt)):
-                        pre_bboxes = boxes_bt[jj]
-                        pre_scrs = scores_bt[jj]
-                        pre_labs = labels_bt[jj]
+                # eval
+                if opt.eval_type == "voceval":
+                    self.eval.statistics(outputs, targets, iou_thresh=0.5)
 
-                        if pre_bboxes.shape[0] > 0:
-                            pre_bboxes = re_resize(pre_bboxes, scale[jj], opt.resize_type)
+                elif opt.eval_type == "cocoeval":
+                    self.eval.statistics(outputs, scale, index)
 
-                            # change to (x, y, w, h) (MS COCO standard)
-                            pre_bboxes[:, 2] -= pre_bboxes[:, 0]
-                            pre_bboxes[:, 3] -= pre_bboxes[:, 1]
-
-                            # compute predicted labels and scores
-                            for box_id in range(pre_bboxes.shape[0]):
-                                score = float(pre_scrs[box_id])
-                                label = int(pre_labs[box_id])
-                                box = pre_bboxes[box_id, :]
-                                # append detection for each positively labeled class
-                                image_result = {
-                                    'image_id': self.val_dataset.image_ids[index[jj]],
-                                    'category_id': self.val_dataset.label_to_coco_label(label),
-                                    'score': float(score),
-                                    'bbox': box.tolist()
-                                }
-
-                                # append detection to results
-                                results.append(image_result)
-
-                    # append image to list of processed images
-                    for idx in index:
-                        image_ids.append(self.val_dataset.image_ids[idx])
-
-                # print progress
                 print('{}/{}'.format(ii, len(self.val_loader)), end='\r')
 
             if opt.eval_type == "voceval":
-                # Compute statistics
-                stats = [np.concatenate(x, 0) for x in list(zip(*voc_eval.stats))]
-                # number of targets per class
-                nt = np.bincount(stats[3].astype(np.int64), minlength=self.num_classes)
-                if len(stats):
-                    p, r, ap, f1, ap_class = voc_eval.ap_per_class(*stats)
-                    mp, mr, map, mf1 = p.mean(), r.mean(), ap.mean(), f1.mean()
-
-                # visualize
-                titles = ['Precision', 'Recall', 'mAP', 'F1']
-                result = [mp, mr, map, mf1]
-                for xi, title in zip(result, titles):
-                    self.writer.add_scalar('val/{}'.format(title), xi, epoch)
-
-                # Print and Write results
-                title = ('%10s' * 7) % ('Epoch: [{}]'.format(epoch), 'Class', 'Targets', 'P', 'R', 'mAP', 'F1')
-                self.logger.info(title)
-                printline = '%20s' + '%10.3g' * 5
-                pf = printline % ('all', nt.sum(), mp, mr, map, mf1)  # print format
-                self.logger.info(pf)
-                if self.num_classes > 1 and len(stats):
-                    for i, c in enumerate(ap_class):
-                        pf = printline % (self.val_dataset.labels[c], nt[c], p[i], r[i], ap[i], f1[i])
-                        self.logger.info(pf)
-
-                return map
+                stats, ap_class = self.eval.metric()
+                for key, value in stats.items():
+                    self.writer.add_scalar('val/{}'.format(key), value.mean(), epoch)
+                self.saver.save_voc_eval_result(stats, ap_class, self.val_dataset.labels)
+                return stats['AP']
 
             elif opt.eval_type == "cocoeval":
-                # write output
-                if not len(results):
-                    return 0
-                json.dump(results, open('{}_bbox_results.json'.format(
-                    opt.dataset, self.val_dataset.set_name), 'w'), indent=4)
-
-                # load results in COCO evaluation tool
-                coco_true = self.val_dataset.coco
-                coco_pred = coco_true.loadRes('{}_bbox_results.json'.format(
-                    opt.dataset, self.val_dataset.set_name))
-
-                # run COCO evaluation
-                coco_eval = COCOeval(coco_true, coco_pred, 'bbox')
-                coco_eval.params.imgIds = image_ids
-                coco_eval.evaluate()
-                coco_eval.accumulate()
-                coco_eval.summarize()
-
-                # save result
-                stats = coco_eval.stats
+                stats = self.eval.metirc()
                 self.saver.save_coco_eval_result(stats)
-
-                # visualize
                 self.writer.add_scalar('val/mAP', stats[0], epoch)
-
-                # according AP50
                 return stats[0]
 
             else:
@@ -289,7 +223,8 @@ def val(**kwargs):
     evaler = Trainer("val")
     print('Num evaluating images: {}'.format(len(evaler.val_dataset)))
 
-    evaler.validate(evaler.start_epoch)
+    for i in range(2):
+        evaler.validate(evaler.start_epoch)
 
 
 def train(**kwargs):

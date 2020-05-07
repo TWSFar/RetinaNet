@@ -172,31 +172,6 @@ class PostProcess(object):
     # """
 
 
-def re_resize(pre_bboxes, scale, resize_type):
-    """
-    args:
-        resize_type:
-            irregular
-            regular
-            letterbox
-        pre_bboxes:
-            tenosr, shape[n, 4]
-        scale:
-            ....
-    """
-    # correct boxes for image scale
-    if resize_type == "irregular":
-        pre_bboxes = pre_bboxes / scale
-
-    elif resize_type == "letterbox":
-        pre_bboxes[:, 0] = pre_bboxes[:, 0] / scale[0] - scale[1]
-        pre_bboxes[:, 1] = pre_bboxes[:, 1] / scale[0] - scale[2]
-        pre_bboxes[:, 2] = pre_bboxes[:, 2] / scale[0] - scale[1]
-        pre_bboxes[:, 3] = pre_bboxes[:, 3] / scale[0] - scale[2]
-
-    return pre_bboxes
-
-
 def iou_cpu(a, b):
     """
     Args:
