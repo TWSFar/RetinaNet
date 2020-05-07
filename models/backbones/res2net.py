@@ -51,7 +51,7 @@ class Res2NetBottleneck(nn.Module):
         self.bn2 = nn.ModuleList([norm_layer(bottleneck_planes // scales) for _ in range(scales-1)])
         self.conv3 = conv1x1(bottleneck_planes, planes * self.expansion)
         self.bn3 = norm_layer(planes * self.expansion)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU(inplace=False)
         self.se = SEModule(planes * self.expansion) if se else None
         self.downsample = downsample
         self.stride = stride
@@ -62,7 +62,10 @@ class Res2NetBottleneck(nn.Module):
 
         out = self.conv1(x)
         out = self.bn1(out)
-        out = self.relu(out)
+        try:
+            out = self.relu(out)
+        except:
+            maxx = out.max()
 
         xs = torch.chunk(out, self.scales, 1)
         ys = []
@@ -96,12 +99,12 @@ class ImageNetRes2Net(nn.Module):
         super(ImageNetRes2Net, self).__init__()
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
-        planes = [int(width * scales * 2 ** i) for i in range(3)]
+        planes = [int(width * scales * 2 ** i) for i in range(4)]
         self.inplanes = planes[0]
         self.conv1 = nn.Conv2d(3, planes[0], kernel_size=7, stride=2, padding=3,
                                bias=False)
         self.bn1 = norm_layer(planes[0])
-        self.high_outc = planes[-1] * 4
+
         self.relu = nn.ReLU(inplace=True)
         self.maxpool = nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(Res2NetBottleneck, planes[0], layers[0], scales=scales, groups=groups, se=se, norm_layer=norm_layer)
@@ -110,6 +113,11 @@ class ImageNetRes2Net(nn.Module):
         self.layer4 = self._make_layer(Res2NetBottleneck, planes[3], layers[3], stride=2, scales=scales, groups=groups, se=se, norm_layer=norm_layer)
         # self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
         # self.fc = nn.Linear(planes[3] * Res2NetBottleneck.expansion, num_classes)
+        out_planes = [self.layer2[layers[1]-1].conv3.out_channels,
+                      self.layer3[layers[2]-1].conv3.out_channels,
+                      self.layer4[layers[3]-1].conv3.out_channels]
+
+        self.out_planes = out_planes
 
         for m in self.modules():
             if isinstance(m, nn.Conv2d):

@@ -8,53 +8,43 @@ device = torch.device('cuda:0')
 class FPN(nn.Module):
     def __init__(self, out_channel=10):
         super(FPN, self).__init__()
-        self.conv = nn.Conv2d(3, out_channel, kernel_size=1, stride=1, padding=0)
+        self.conv = nn.Linear(50, 4)
+        self.relu = nn.ReLU(inplace=True)
 
-    def forward(self, x):
-        return self.conv(x)
+    def forward(self, a, b):
+        a = self.conv(a)
+        a = self.relu(a)
+        b = b.type_as(a)
+        iw = torch.min(torch.unsqueeze(a[:, 2], dim=1), b[:, 2]) - torch.max(torch.unsqueeze(a[:, 0], 1), b[:, 0])
+        ih = torch.min(torch.unsqueeze(a[:, 3], dim=1), b[:, 3]) - torch.max(torch.unsqueeze(a[:, 1], 1), b[:, 1])
+        return iw
 
+def inplace_relu(m):
+    classname = m.__class__.__name__
+    if classname.find('ReLU') != -1:
+        m.inplace = True
 
 model = FPN().to(device)
 optimizer = optim.Adam(model.parameters())
-
 
 model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
 model = torch.nn.DataParallel(model, [0, 1])
-for i in range(10):
-    inputs = torch.rand(2, 3, 10, 10).to(device)
-    labels = torch.rand(2, 10, 10, 10).to(device)
-    criterion = nn.MSELoss().to(device)
+model = torch.nn.DataParallel(model, [1])
+model.apply(inplace_relu)
+model.eval()
+with torch.no_grad():
+    for i in range(10):
+        inputs = torch.rand(3, 42, 50).to(device)
+        labels = torch.rand(3, 10, 4).to(device)
+        label2 = torch.rand(3)
+        criterion = nn.MSELoss().to(device)
 
-    outputs = model(inputs)
-    loss = criterion(outputs, labels)
-    with amp.scale_loss(loss, optimizer) as scaled_loss:
-        scaled_loss.backward()
-    optimizer.step()
+        try:
+            outputs = model(inputs, labels)
+        except:
+            pass
+    # loss = criterion(outputs.sum*(), labels)
+    # with amp.scale_loss(loss, optimizer) as scaled_loss:
+    #     scaled_loss.backward()
+    # optimizer.step()
 
-# Save checkpoint
-checkpoint = {
-    'model': model.state_dict(),
-    'optimizer': optimizer.state_dict(),
-    'amp': amp.state_dict()
-}
-torch.save(checkpoint, 'amp_checkpoint.pt')
-
-# Restore
-model = FPN().to(device)
-optimizer = optim.Adam(model.parameters())
-checkpoint = torch.load('amp_checkpoint.pt')
-
-model, optimizer = amp.initialize(model, optimizer, opt_level='O1')
-model.load_state_dict(checkpoint['model'])
-optimizer.load_state_dict(checkpoint['optimizer'])
-amp.load_state_dict(checkpoint['amp'])
-for i in range(10):
-    inputs = torch.rand(2, 3, 10, 10).to(device)
-    labels = torch.rand(2, 10, 10, 10).to(device)
-    criterion = nn.MSELoss().to(device)
-
-    outputs = model(inputs)
-    loss = criterion(outputs, labels)
-    with amp.scale_loss(loss, optimizer) as scaled_loss:
-        scaled_loss.backward()
-    optimizer.step()

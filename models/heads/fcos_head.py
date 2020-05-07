@@ -89,6 +89,7 @@ class FCOSHead(nn.Module):
                                            bbox_preds[0].device)
 
         if self.training:
+            annotations = annotations.type_as(all_level_points)
             labels, bbox_targets = self.fcos_target(all_level_points,
                                                     annotations)
 

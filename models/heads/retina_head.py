@@ -151,7 +151,7 @@ class RetinaHead(nn.Module):
         if self.training:
             # return self.loss(pred_cls, pred_reg, anchors, annotations)
             loss_cls, loss_reg = [], []
-
+            annotations = annotations.type_as(pred_reg)
             for bi in range(num_imgs):
                 annotation = annotations[bi]
                 annotation = annotation[annotation[:, 4] != -1]

@@ -9,7 +9,8 @@ from configs.retina_visdrone import opt
 
 from dataloaders import make_data_loader
 from models import Model
-from models.utils import PostProcess, VOC_eval, COCO_eval, parse_losses
+from models.utils import (PostProcess, VOC_eval, COCO_eval,
+                          parse_losses, inplace_relu, uninplace_relu)
 from utils import TensorboardSummary, Saver, Timer
 
 import torch
@@ -159,10 +160,10 @@ class Trainer(object):
 
     def validate(self, epoch):
         self.model.eval()
+        # torch.backends.cudnn.benchmark = False
+        # self.model.apply(uninplace_relu)
         # start collecting results
         with torch.no_grad():
-            # results = []
-            # image_ids = []
             for ii, data in enumerate(self.val_loader):
                 # if ii > 0: break
                 scale = data['scale']

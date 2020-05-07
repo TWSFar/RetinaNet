@@ -34,14 +34,14 @@ class Config:
 
     # train
     use_apex = True
-    batch_size = 2
+    batch_size = 1
     epochs = 50
     workers = 1
     freeze_bn = False
 
     # optimizer
     adam = False
-    lr = 0.001
+    lr = 0.0001
     momentum = 0.9
     decay = 0.0001
     steps = [0.7, 0.9]
