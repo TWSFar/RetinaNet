@@ -9,15 +9,15 @@ class Config:
     dataset = "visdrone"
     root_dir = user_dir + "/data/Visdrone"
     test_dir = user_dir + "/data/Visdrone/VisDrone2019-DET-val/images"
-    input_size = (1000, 600)
+    input_size = (1024, 512)
     norm_cfg = dict(mean=[0.382, 0.383, 0.367], std=[0.164, 0.156, 0.164])
     resume = False
     pre = '/home/twsf/work/RetinaNet/run/retina_visdrone/20200506_01_train/model_best.pth'
 
     # model
     model = "retina"
-    backbone = 'res2next101_32x8d'
-    neck = "fpn"
+    backbone = 'resnet50'
+    neck = "bifpn"
     head = dict(
         type="RetinaHead",
         strides=[8, 16, 32, 64, 128],
@@ -33,7 +33,7 @@ class Config:
     )
 
     # train
-    use_apex = True
+    use_apex = False
     batch_size = 1
     epochs = 50
     workers = 1
@@ -41,12 +41,12 @@ class Config:
 
     # optimizer
     adam = False
-    lr = 0.0001
+    lr = 0.01
+    grad_clip = 35
     momentum = 0.9
     decay = 0.0001
     steps = [0.7, 0.9]
     gamma = 0.3
-    grad_clip = 35
 
     # eval
     eval_type = "cocoeval"  # [cocoeval, voceval]

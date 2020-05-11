@@ -3,6 +3,7 @@ from .fpn_aug_se import FPN_AUG_SE
 from .fpn_se import FPN_SE
 from .fpn_gate import FPN_GATE
 from .hrnet_neck import HRNET_NECK
+from .bifpn import BiFPN
 
 
 def build_neck(neck, in_planes, out_plane=256):
@@ -21,5 +22,8 @@ def build_neck(neck, in_planes, out_plane=256):
     elif neck == 'hrnet_neck':
         assert len(in_planes) == 4
         return HRNET_NECK(in_planes, out_plane)
+    elif neck == 'bifpn':
+        assert len(in_planes) == 3
+        return BiFPN(in_planes, out_plane)
     else:
         raise NotImplementedError

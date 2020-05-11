@@ -24,8 +24,8 @@ class Model(nn.Module):
             if isinstance(layer, nn.BatchNorm2d):
                 layer.eval()
 
-    def forward(self, imgs, targets=None):
-        featmaps = self.backbone(imgs)
+    def forward(self, featmaps, targets=None):
+        featmaps = self.backbone(featmaps)
         featmaps = self.neck(featmaps)
 
         if self.training:
