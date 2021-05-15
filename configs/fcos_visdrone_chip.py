@@ -4,6 +4,8 @@ from utils.devices import select_device
 user_dir = os.path.expanduser('~')
 
 
+
+
 class Config:
     # data
     dataset = "visdrone"
